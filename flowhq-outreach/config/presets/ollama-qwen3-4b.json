@@ -1,0 +1,21 @@
+{
+  "_comment": "Preset: local Ollama with Qwen3 4B. Build with: node scripts/build-workflows.js --defaults --preset ollama-qwen3-4b (or --preset ollama-qwen3-4b with your settings.local.json). See docs/OLLAMA.md.",
+  "llm": {
+    "provider": "ollama",
+    "model": "qwen3:4b",
+    "endpoint": "http://host.docker.internal:11434/api/chat",
+    "credential_type": "none",
+    "max_tokens": 1200,
+    "temperature": 0.2,
+    "num_ctx": 8192,
+    "ollama_think": false,
+    "keep_alive": "30m",
+    "timeout_ms": 300000,
+    "max_tries": 2
+  },
+  "generation": {
+    "batch_size": 5,
+    "fallback_to_template": true
+  },
+  "workflow_name_suffix": " (Ollama Qwen3 4B)"
+}

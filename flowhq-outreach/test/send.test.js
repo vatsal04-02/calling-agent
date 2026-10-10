@@ -56,6 +56,7 @@ test('when sending is disabled the gate reports what WOULD be sent and sends not
   const g = gate([approvedLead()], s, {});
   assert.equal(g.send.length, 0);
   assert.equal(g.would_send.length, 1);
+  assert.match(g.updates[0].send_block_reason, /^NOT SENT - sending is off \(SENDING_ENABLED=false in workflow config.*Would send in TEST mode to sam@demo\.example/, 'reason visible on the lead row');
 });
 
 test('human approval is required; unapproved or rejected drafts never send', () => {

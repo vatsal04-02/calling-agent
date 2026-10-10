@@ -1,6 +1,5 @@
 {
   "_comment": "Static, non-secret configuration baked into every workflow's 'Config' node by scripts/build-workflows.js. Copy to config/settings.local.json (git-ignored) to override. Secrets never go here: API keys and OAuth tokens live in n8n credentials.",
-
   "spreadsheet_id": "REPLACE_WITH_OUTREACH_SPREADSHEET_ID",
   "source": {
     "_comment": "Where your raw leads live. Leave spreadsheet_id empty to use the outreach spreadsheet above. The source sheet is only ever READ.",
@@ -16,7 +15,6 @@
     "settings": "Settings",
     "inbox_log": "Inbox_Log"
   },
-
   "sender": {
     "name": "REPLACE_WITH_YOUR_NAME",
     "email": "REPLACE_WITH_GMAIL_ADDRESS",
@@ -28,7 +26,6 @@
     "unsubscribe_url_base": "",
     "company_description": "FlowHQ builds custom websites and AI automation systems for small and medium-sized businesses."
   },
-
   "sending": {
     "SENDING_ENABLED": false,
     "TEST_MODE": true,
@@ -50,7 +47,6 @@
     },
     "gmail_api_base": "https://gmail.googleapis.com"
   },
-
   "research": {
     "user_agent": "FlowHQ-ResearchBot/1.0 (+https://flowhq.in; business website review)",
     "max_pages_per_site": 4,
@@ -62,7 +58,6 @@
     "batch_size": 10,
     "respect_robots_txt": true
   },
-
   "generation": {
     "batch_size": 10,
     "min_confidence": 0.6,
@@ -71,11 +66,11 @@
     "body_min_words": 60,
     "body_max_words": 170,
     "subject_max_chars": 60,
-    "no_recommendation_action": "MANUAL_REVIEW"
+    "no_recommendation_action": "MANUAL_REVIEW",
+    "fallback_to_template": true
   },
-
   "llm": {
-    "_comment": "provider: anthropic | openai_compatible | template. 'template' uses no AI model at all (zero cost, more formulaic wording). The API key is stored in the n8n credential named in credential_type, never here.",
+    "_comment": "provider: anthropic | ollama | openai_compatible | template. 'template' uses no AI model at all (zero cost, more formulaic wording). credential_type: anthropicApi | openAiApi | httpHeaderAuth | none (local Ollama). The API key is stored in the n8n credential, never here. For Ollama + Qwen3 4B use the preset in config/presets/ollama-qwen3-4b.json (docs/OLLAMA.md).",
     "provider": "anthropic",
     "model": "claude-haiku-5-5",
     "endpoint": "https://api.anthropic.com/v1/messages",
@@ -85,11 +80,14 @@
     "openai_response_format": "json_object",
     "temperature": 0.4
   },
-
   "countries": {
-    "enabled": ["US", "GB", "AU", "NZ"]
+    "enabled": [
+      "US",
+      "GB",
+      "AU",
+      "NZ"
+    ]
   },
-
   "allow_synthetic_domains": false,
   "fixture_base_url": ""
 }

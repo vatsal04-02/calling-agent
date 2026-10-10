@@ -110,15 +110,33 @@ async function main() {
     });
     await check('research cache written per domain', () => assert.strictEqual(s.research_cache.length, 11));
 
-    console.log('\n03 Generate (mock LLM)');
+    const OLLAMA = process.env.HARNESS_PRESET === 'ollama-qwen3-4b';
+    console.log(`\n03 Generate (mock ${OLLAMA ? 'Ollama /api/chat, small-model behaviour' : 'Anthropic API'})`);
     await n8n(['execute', `--id=${ID.generate}`]);
     s = await sheets();
-    await check('mock 529 overloaded retried by the HTTP node -> draft created', () => assert.strictEqual(lead(s, 'Harbour Plumbing').outreach_status, 'READY_FOR_APPROVAL'));
-    await check('malformed AI response -> lead stays queued for next run', () => assert.match(lead(s, 'Kiwi Physio').status_reason, /generation_retry_pending:malformed/));
-    await check('AI draft with unsupported claims -> FAILED validation, MANUAL_REVIEW', () => {
-      assert.strictEqual(lead(s, 'Summit Roofing').factual_validation_status, 'FAILED');
-      assert.match(lead(s, 'Summit Roofing').validation_issues, /unsupported_quality_claim/);
-    });
+    if (OLLAMA) {
+      await check('Ollama request: native /api/chat, think=false, JSON-schema format, num_ctx 8192, no streaming', () => {
+        const c = mk.state.llmCalls.filter((x) => x.provider === 'ollama');
+        assert.ok(c.length >= 4);
+        assert.ok(c.every((x) => x.think === false && x.has_format && x.num_ctx === 8192 && x.stream === false));
+      });
+      await check('Qwen3 <think> preamble stripped -> draft created', () => assert.strictEqual(lead(s, 'Kiwi Physio').outreach_status, 'READY_FOR_APPROVAL'));
+      await check('omitted used_*_ids filled from the selection -> AI draft accepted', () => assert.match(lead(s, 'Bright Smile Dental').generator, /^ollama:qwen3:4b$/));
+      await check('truncated reply (done_reason=length) -> lead stays queued for next run', () => assert.match(lead(s, 'Harbour Plumbing').status_reason, /generation_retry_pending:malformed/));
+      await check('AI draft with fabricated claims -> rejected, validated template draft used instead', () => {
+        const l = lead(s, 'Summit Roofing');
+        assert.strictEqual(l.outreach_status, 'READY_FOR_APPROVAL');
+        assert.match(l.validation_issues, /ai_fallback:AI draft rejected \(.*unsupported_quality_claim/);
+        assert.ok(!/slow|30%|guarantee/i.test(l.email_body));
+      });
+    } else {
+      await check('mock 529 overloaded retried by the HTTP node -> draft created', () => assert.strictEqual(lead(s, 'Harbour Plumbing').outreach_status, 'READY_FOR_APPROVAL'));
+      await check('malformed AI response -> lead stays queued for next run', () => assert.match(lead(s, 'Kiwi Physio').status_reason, /generation_retry_pending:malformed/));
+      await check('AI draft with unsupported claims -> rejected, validated template draft used instead', () => {
+        assert.strictEqual(lead(s, 'Summit Roofing').outreach_status, 'READY_FOR_APPROVAL');
+        assert.match(lead(s, 'Summit Roofing').validation_issues, /ai_fallback:AI draft rejected \(.*unsupported_quality_claim/);
+      });
+    }
     await check('no credible recommendation -> MANUAL_REVIEW, no LLM call', () => {
       assert.match(lead(s, 'Northside Florist').status_reason, /no_recommendation/);
       assert.ok(!mk.state.llmCalls.some((c) => c.business === 'Northside Florist'));
@@ -126,11 +144,17 @@ async function main() {
     await check('site refusing unsolicited email is never drafted', () => assert.strictEqual(lead(s, 'Metro Electrical').status_reason, 'website_says_no_unsolicited_messages'));
     await n8n(['execute', `--id=${ID.generate}`]);
     s = await sheets();
-    await check('second generation run completes the retried lead', () => assert.strictEqual(lead(s, 'Kiwi Physio').outreach_status, 'READY_FOR_APPROVAL'));
+    await check('second generation run completes the retried lead', () => assert.strictEqual(lead(s, OLLAMA ? 'Harbour Plumbing' : 'Kiwi Physio').outreach_status, 'READY_FOR_APPROVAL'));
 
     console.log('\n04 Send (TEST MODE, mock Gmail)');
     await n8n(['execute', `--id=${ID.send}`]);
     await check('shipped defaults send nothing', () => assert.strictEqual(mk.state.sent.length, 0));
+    await patch((x) => { Object.assign(lead(x, 'Oxford Hair Studio'), { approval_status: 'APPROVED' }); });
+    await n8n(['execute', `--id=${ID.send}`]);
+    await check('dry run: approved draft shows WHY it was not sent on its Leads row', async () => {
+      assert.match(lead(await sheets(), 'Oxford Hair Studio').send_block_reason, /^NOT SENT - sending is off \(.*SENDING_ENABLED.*\)\. Would send in TEST mode/);
+    });
+    await patch((x) => { Object.assign(lead(x, 'Oxford Hair Studio'), { approval_status: 'PENDING' }); });
     await patch((x) => { setSetting(x, 'SENDING_ENABLED', 'TRUE'); setSetting(x, 'TEST_ALLOWLIST', 'owner@flowhq-test.example'); setSetting(x, 'TEST_REDIRECT_TO', 'owner@flowhq-test.example'); });
     await n8n(['execute', `--id=${ID.send}`]);
     await check('nothing is sent without human approval', () => assert.strictEqual(mk.state.sent.length, 0));

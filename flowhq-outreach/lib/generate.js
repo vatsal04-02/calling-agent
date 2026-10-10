@@ -68,9 +68,25 @@ function finalizeGeneration(plan, llmItem, settings, compliance) {
   const now = isoNow();
   const attempts = toInt(lead.generation_attempts, 0) + 1;
   const ctx = contextFor(lead, plan.selection, settings, compliance);
+  const fallbackAllowed = !(settings.generation && settings.generation.fallback_to_template === false);
+  const selectedSignalIds = plan.selection.signals.map((x) => x.id);
+  const selectedServiceIds = [plan.selection.primary_service.id].concat(plan.selection.secondary_service ? [plan.selection.secondary_service.id] : []);
+
+  const check = (parts) => {
+    const validation = validateDraft(parts, ctx);
+    const email = assembleEmail(parts, ctx);
+    const leftover = PLACEHOLDER_RE.exec(email.subject + '\n' + email.body);
+    if (leftover) {
+      validation.issues.push({ code: 'placeholder_in_assembled_email', severity: 'block', detail: `${leftover[0]} (fill in sender.* in the Config node / settings.local.json)` });
+      validation.status = VALIDATION.FAILED;
+    }
+    return { validation, email, configProblem: !!leftover };
+  };
+
   let parts;
   let generator;
   let usage = null;
+  let aiNote = '';
   if (plan.action === 'template') {
     parts = templateParts(ctx);
     generator = 'template';
@@ -78,28 +94,51 @@ function finalizeGeneration(plan, llmItem, settings, compliance) {
     const parsed = parseResponse(llmItem, settings.llm);
     if (!parsed.ok) {
       const giveUp = attempts >= MAX_GENERATION_ATTEMPTS || parsed.kind === 'permanent';
-      return {
-        lead_id: lead.lead_id,
-        outreach_status: giveUp ? STATUS.MANUAL_REVIEW : STATUS.RESEARCHED,
-        status_reason: giveUp ? `generation_failed:${parsed.kind}` : `generation_retry_pending:${parsed.kind}`,
-        generation_attempts: attempts,
-        last_error: truncate(`LLM ${parsed.kind}: ${parsed.error}`, 500),
-        updated_at: now,
-        _error: { type: `llm_${parsed.kind}`, message: parsed.error },
-      };
+      if (!giveUp || !fallbackAllowed) {
+        return {
+          lead_id: lead.lead_id,
+          outreach_status: giveUp ? STATUS.MANUAL_REVIEW : STATUS.RESEARCHED,
+          status_reason: giveUp ? `generation_failed:${parsed.kind}` : `generation_retry_pending:${parsed.kind}`,
+          generation_attempts: attempts,
+          last_error: truncate(`LLM ${parsed.kind}: ${parsed.error}`, 500),
+          updated_at: now,
+          _error: { type: `llm_${parsed.kind}`, message: parsed.error },
+        };
+      }
+      aiNote = `AI failed (${parsed.kind}: ${truncate(parsed.error, 120)})`;
+    } else {
+      parts = parsed.parts;
+      usage = parsed.usage;
+      generator = `${settings.llm.provider}:${settings.llm.model}`;
+      // Small models often omit or garble these echo fields; the text itself is what gets validated.
+      if (!parts.used_signal_ids.length) parts.used_signal_ids = selectedSignalIds;
+      if (!parts.used_service_ids.length) parts.used_service_ids = selectedServiceIds.slice(0, parts.secondary_sentence ? 2 : 1);
     }
-    parts = parsed.parts;
-    usage = parsed.usage;
-    generator = `${settings.llm.provider}:${settings.llm.model}`;
   }
-  const validation = validateDraft(parts, ctx);
-  const email = assembleEmail(parts, ctx);
-  const leftover = PLACEHOLDER_RE.exec(email.subject + '\n' + email.body);
-  if (leftover) {
-    validation.issues.push({ code: 'placeholder_in_assembled_email', severity: 'block', detail: `${leftover[0]} (check sender settings)` });
-    validation.status = VALIDATION.FAILED;
+
+  let result = parts ? check(parts) : null;
+  if (result && result.configProblem) {
+    // Config problem, not a writing problem: no fallback can fix it.
+    return Object.assign(updateFrom(plan, lead, result, generator, usage, attempts, now), {
+      outreach_status: STATUS.MANUAL_REVIEW,
+      status_reason: 'sender_settings_incomplete',
+      last_error: 'Sender name/email/postal address in the Config node still contain REPLACE_WITH placeholders; no draft can pass until they are filled in.',
+    });
   }
-  const passed = validation.status === VALIDATION.PASSED;
+  if ((!result || result.validation.status !== VALIDATION.PASSED) && plan.action === 'llm' && fallbackAllowed) {
+    if (result) aiNote = `AI draft rejected (${result.validation.issues.filter((i) => i.severity === 'block').map((i) => i.code).join(', ')})`;
+    const tpl = check(templateParts(ctx));
+    if (tpl.validation.status === VALIDATION.PASSED || !result) {
+      tpl.validation.issues.unshift({ code: 'ai_fallback', severity: 'info', detail: aiNote });
+      result = tpl;
+      generator = `template (fallback; ${settings.llm.provider}:${settings.llm.model})`;
+    }
+  }
+  return updateFrom(plan, lead, result, generator, usage, attempts, now);
+}
+
+function updateFrom(plan, lead, result, generator, usage, attempts, now) {
+  const passed = result.validation.status === VALIDATION.PASSED;
   const p = plan.selection.primary_service;
   const s = plan.selection.secondary_service;
   return {
@@ -109,10 +148,10 @@ function finalizeGeneration(plan, llmItem, settings, compliance) {
     business_benefit: (p.approved_benefits || [])[0] || '',
     selected_signals: plan.selection.signals.map((x) => x.id).join(', '),
     confidence_score: plan.selection.confidence,
-    email_subject: email.subject,
-    email_body: email.body,
-    factual_validation_status: validation.status,
-    validation_issues: toCell(validation.issues.map((i) => `${i.severity}:${i.code}:${i.detail}`).join('\n'), 5000),
+    email_subject: result.email.subject,
+    email_body: result.email.body,
+    factual_validation_status: result.validation.status,
+    validation_issues: toCell(result.validation.issues.map((i) => `${i.severity}:${i.code}:${i.detail}`).join('\n'), 5000),
     generator,
     llm_usage: usage ? `${usage.input_tokens} in / ${usage.output_tokens} out` : '',
     generation_attempts: attempts,

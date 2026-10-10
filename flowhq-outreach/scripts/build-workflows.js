@@ -146,10 +146,10 @@ function llmHttp(settings, pos) {
     sendBody: true,
     specifyBody: 'json',
     jsonBody: '={{ JSON.stringify($json.request_body) }}',
-    options: { timeout: 120000 },
+    options: { timeout: llm.timeout_ms || 120000 },
   };
   const credentials = {};
-  if (HARNESS) p.authentication = 'none';
+  if (HARNESS || llm.credential_type === 'none') p.authentication = 'none';
   else if (llm.credential_type === 'httpHeaderAuth') {
     Object.assign(p, { authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth' });
     credentials.httpHeaderAuth = { id: 'flowhqLlmHeader0', name: 'FlowHQ LLM API key' };
@@ -162,7 +162,7 @@ function llmHttp(settings, pos) {
     p.headerParameters = { parameters: [{ name: 'anthropic-version', value: '2023-06-01' }] };
   }
   return node('Call LLM', 'n8n-nodes-base.httpRequest', 4.2, p, pos,
-    Object.assign({ retryOnFail: true, maxTries: 3, waitBetweenTries: 5000, onError: 'continueRegularOutput' }, Object.keys(credentials).length ? { credentials } : {}));
+    Object.assign({ retryOnFail: true, maxTries: llm.max_tries || 3, waitBetweenTries: 5000, onError: 'continueRegularOutput' }, Object.keys(credentials).length ? { credentials } : {}));
 }
 
 function ifNode(name, leftExpr, right, pos) {
@@ -626,10 +626,16 @@ return [{ json: {
 
 // ---------------------------------------------------------------- main
 function main() {
+  const { deepMerge } = require('./local-pipeline');
   let settings = args.includes('--defaults') ? readJson('config/settings.default.json') : loadSettings();
+  // --preset <name>: overlay config/presets/<name>.json (e.g. ollama-qwen3-4b)
+  const PRESET = args.includes('--preset') ? args[args.indexOf('--preset') + 1] : (HARNESS && process.env.HARNESS_PRESET) || '';
+  if (PRESET) settings = deepMerge(settings, readJson(`config/presets/${PRESET}.json`));
   if (HARNESS) {
-    const { deepMerge } = require('./local-pipeline');
+    const presetLlm = PRESET ? Object.assign({}, settings.llm) : null;
     settings = deepMerge(settings, JSON.parse(fs.readFileSync(path.join(ROOT, 'test/n8n/harness-settings.json'), 'utf8')));
+    // Keep the preset's provider; only point it at the local mock (same path, e.g. /api/chat).
+    if (presetLlm) settings.llm = Object.assign(presetLlm, { endpoint: presetLlm.endpoint.replace(/^https?:\/\/[^/]+/, 'MOCK'), timeout_ms: 30000 });
     settings.llm.endpoint = settings.llm.endpoint.replace('MOCK', HARNESS);
     settings.sending.gmail_api_base = HARNESS;
     settings.fixture_base_url = settings.fixture_base_url.replace('FIXTURE', process.env.FIXTURE_URL || 'http://127.0.0.1:8787');
@@ -637,13 +643,16 @@ function main() {
   // With a settings.local.json (your spreadsheet ID, sender details), output goes to a git-ignored folder
   // so personal configuration is never committed. workflows/ always holds the placeholder build.
   const hasLocal = fs.existsSync(path.join(ROOT, 'config', 'settings.local.json'));
-  const outDir = HARNESS ? path.join(ROOT, 'out', 'harness') : hasLocal && !args.includes('--defaults') ? path.join(ROOT, 'out', 'workflows-local') : path.join(ROOT, 'workflows');
+  const outDir = HARNESS ? path.join(ROOT, 'out', 'harness')
+    : hasLocal && !args.includes('--defaults') ? path.join(ROOT, 'out', 'workflows-local')
+      : PRESET ? path.join(ROOT, 'workflows', 'presets', PRESET) : path.join(ROOT, 'workflows');
   if (!HARNESS && hasLocal && !args.includes('--defaults')) console.log('config/settings.local.json found -> writing to out/workflows-local/ (git-ignored). Import these into n8n.');
   fs.mkdirSync(outDir, { recursive: true });
   const builders = [['00-preflight-check', wfPreflight], ['01-import-leads', wfImport], ['02-research-websites', wfResearch], ['03-generate-emails', wfGenerate],
     ['04-send-approved-emails', wfSend], ['05-inbox-monitor', wfInbox], ['06-unsubscribe-webhook', wfUnsubscribe], ['99-error-logger', wfError]];
   for (const [file, build] of builders) {
     const wf = build(settings);
+    if (settings.workflow_name_suffix) wf.name += settings.workflow_name_suffix;
     fs.writeFileSync(path.join(outDir, `${file}.json`), JSON.stringify(wf, null, 2) + '\n');
     console.log(`${file}.json: ${wf.nodes.length} nodes`);
   }

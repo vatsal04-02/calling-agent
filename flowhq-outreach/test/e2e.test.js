@@ -51,9 +51,10 @@ test('full pipeline: import -> research -> generate -> approve -> send (test mod
   assert.equal(lead('Coastal Vets').outreach_status, 'SUPPRESSED');
   // 10 no credible recommendation
   assert.match(lead('Northside Florist').status_reason, /no_recommendation/);
-  // 11 AI response with unsupported claims
-  assert.equal(lead('Summit Roofing').factual_validation_status, 'FAILED');
-  assert.equal(lead('Summit Roofing').outreach_status, 'MANUAL_REVIEW');
+  // 11 AI response with unsupported claims: AI text rejected, validated template draft used instead
+  assert.match(lead('Summit Roofing').validation_issues, /ai_fallback:AI draft rejected \(.*unsupported_quality_claim/);
+  assert.match(lead('Summit Roofing').generator, /^template \(fallback/);
+  assert.ok(!/slow|30%|guarantee/i.test(lead('Summit Roofing').email_body));
   // site that refuses unsolicited email is never drafted
   assert.equal(lead('Metro Electrical').status_reason, 'website_says_no_unsolicited_messages');
 

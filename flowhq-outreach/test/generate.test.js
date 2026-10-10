@@ -178,5 +178,50 @@ test('temporary LLM failure keeps the lead queued; repeated failures go to manua
   assert.equal(u1.outreach_status, 'RESEARCHED');
   assert.equal(u1.generation_attempts, 1);
   const plan3 = Object.assign({}, plan, { lead: Object.assign({}, plan.lead, { generation_attempts: 2 }) });
-  assert.equal(finalizeGeneration(plan3, { error: { message: '529 overloaded' } }, s, compliance).outreach_status, 'MANUAL_REVIEW');
+  const fb = finalizeGeneration(plan3, { error: { message: '529 overloaded' } }, s, compliance);
+  assert.equal(fb.outreach_status, 'READY_FOR_APPROVAL', 'after 3 failed attempts the validated template draft is used');
+  assert.match(fb.generator, /^template \(fallback/);
+  assert.match(fb.validation_issues, /ai_fallback/);
+  const noFb = testSettings(null, { llm: { provider: 'anthropic', model: 'm' }, generation: { fallback_to_template: false } });
+  assert.equal(finalizeGeneration(plan3, { error: { message: '529 overloaded' } }, noFb, compliance).outreach_status, 'MANUAL_REVIEW');
+});
+
+test('AI draft that fails validation falls back to the template draft (and records why)', () => {
+  const s = testSettings(null, { llm: { provider: 'ollama', model: 'qwen3:4b' } });
+  const plan = planGeneration(lead({ signals_json: JSON.stringify([SIG.booking]) }), catalogue, s, compliance);
+  const bad = { message: { content: JSON.stringify({ subject: 'Boost your sales!', observation_paragraph: 'Your website is slow and outdated.', suggestion_paragraph: 'We guarantee 30% more bookings.', intro_sentence: 'I run FlowHQ.', cta_sentence: 'Call now!' }) }, done: true, done_reason: 'stop' };
+  const u = finalizeGeneration(plan, bad, s, compliance);
+  assert.equal(u.outreach_status, 'READY_FOR_APPROVAL');
+  assert.equal(u.factual_validation_status, 'PASSED');
+  assert.match(u.validation_issues, /ai_fallback:AI draft rejected \(.*unsupported_quality_claim/);
+  assert.ok(!/slow|guarantee/i.test(u.email_body), 'none of the rejected AI text survives');
+});
+
+test('sender placeholders give an explicit config status instead of a generic failure', () => {
+  const s = testSettings(null, { llm: { provider: 'template' }, sender: { name: 'REPLACE_WITH_YOUR_NAME' } });
+  const u = finalizeGeneration(planGeneration(lead({ signals_json: JSON.stringify([SIG.booking]) }), catalogue, s, compliance), null, s, compliance);
+  assert.equal(u.status_reason, 'sender_settings_incomplete');
+  assert.match(u.last_error, /REPLACE_WITH/);
+});
+
+test('Ollama native API: request shape and Qwen3 response quirks', () => {
+  const ctx = ctxFor([SIG.booking]);
+  const llm = { provider: 'ollama', model: 'qwen3:4b', max_tokens: 1200, temperature: 0.2 };
+  const body = buildRequest(ctx, llm);
+  assert.equal(body.stream, false);
+  assert.equal(body.think, false, 'thinking off by default');
+  assert.deepEqual(body.format, EMAIL_SCHEMA, 'grammar-constrained JSON');
+  assert.equal(body.options.num_ctx, 8192, 'context large enough for the ~2k-token prompt');
+  assert.equal(body.options.num_predict, 1200);
+  assert.ok(!('think' in buildRequest(ctx, Object.assign({}, llm, { ollama_think: null }))), 'think can be omitted');
+  const good = { subject: 'An idea', observation_paragraph: 'o', suggestion_paragraph: 'p', intro_sentence: 'i', cta_sentence: 'c' };
+  const r1 = parseResponse({ message: { content: '<think>\nThe user wants {json}...\n</think>\n' + JSON.stringify(good) }, done: true, done_reason: 'stop', prompt_eval_count: 1900, eval_count: 310 }, llm);
+  assert.equal(r1.ok, true, 'thinking block stripped');
+  assert.equal(r1.parts.secondary_sentence, '', 'missing optional field defaulted');
+  assert.deepEqual(r1.usage, { input_tokens: 1900, output_tokens: 310 });
+  assert.equal(parseResponse({ message: { content: '{"subject":' }, done: true, done_reason: 'length' }, llm).kind, 'malformed');
+  assert.match(parseResponse({ message: { content: '', thinking: 'hmm' }, done: true, done_reason: 'stop' }, llm).error, /only thinking/);
+  assert.equal(parseResponse({ error: { message: 'The service refused the connection - perhaps it is offline', code: 'ECONNREFUSED' } }, llm).kind, 'temporary');
+  assert.equal(parseResponse({ error: { message: "model 'qwen3:4b' not found", httpCode: '404' } }, llm).kind, 'permanent');
+  assert.match(parseResponse({ choices: [] }, llm).error, /api\/chat/, 'clear hint when pointed at the wrong endpoint');
 });

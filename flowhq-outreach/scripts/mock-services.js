@@ -7,6 +7,8 @@
 //     - business "Harbour Plumbing" -> first call returns 529 overloaded (temporary failure)
 //     - business "Kiwi Physio"      -> returns non-JSON text once (malformed response)
 //     - otherwise                   -> a well-formed draft built only from the provided observations
+//   Ollama POST /api/chat (small-model behaviour): Harbour -> first reply truncated (done_reason=length),
+//     Summit -> fabricated claims, Kiwi -> <think> preamble before the JSON, all -> empty used_*_ids
 //   Sheets (n8n harness only) GET /sheets/<tab>/read, POST /sheets/<tab>/<append|update|appendOrUpdate>?key=col
 //     - in-memory tabs with Google-Sheets-like semantics (update skips missing keys)
 //   Gmail POST /gmail/v1/users/me/messages/send, GET /gmail/v1/users/me/profile, GET /gmail/parsed-inbox
@@ -95,6 +97,25 @@ function createServer() {
         return send(200, { id, threadId: 'thread-' + id, labelIds: ['SENT'] });
       }
 
+      if (req.method === 'POST' && req.url === '/api/chat') {
+        // Ollama native API, emulating a small local model (Qwen3 4B class).
+        const payload = JSON.parse(String(body.messages[1].content).replace(/\n\nReturn only the JSON object\.$/, ''));
+        const name = payload.business.name;
+        state.llmCalls.push({ business: name, provider: 'ollama', think: body.think, has_format: !!body.format, num_ctx: body.options && body.options.num_ctx, stream: body.stream });
+        state.ollamaCounts = state.ollamaCounts || {};
+        const n = (state.ollamaCounts[name] = (state.ollamaCounts[name] || 0) + 1);
+        const reply = (content, extra) => send(200, Object.assign({ model: body.model, message: { role: 'assistant', content }, done: true, done_reason: 'stop', prompt_eval_count: 1900, eval_count: 330 }, extra || {}));
+        if (/Harbour Plumbing/.test(name) && n === 1) return reply('{"subject": "An idea for Harb', { done_reason: 'length' });
+        const d = draftFromPayload(payload);
+        d.used_signal_ids = [];  // small models often drop the echo fields
+        d.used_service_ids = [];
+        if (/Summit Roofing/.test(name)) {
+          d.observation_paragraph = 'Your website is slow and outdated, so you are losing customers.';
+          d.suggestion_paragraph = 'We guarantee a 30% increase in bookings!';
+        }
+        if (/Kiwi Physio/.test(name)) return reply('<think>\nThe user wants a JSON object {like this}. Let me plan.\n</think>\n\n' + JSON.stringify(d));
+        return reply(JSON.stringify(d));
+      }
       const sm = /^\/sheets\/([a-z_]+)\/(read|append|update|appendOrUpdate)(?:\?key=([a-z_]+))?$/.exec(req.url);
       if (sm) {
         const [, name, op, key] = sm;

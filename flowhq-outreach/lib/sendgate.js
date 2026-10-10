@@ -160,7 +160,12 @@ function evaluateSendQueue(input) {
       lead_id: lead.lead_id, mode, to, intended_to: email.email, subject, run_id: runId,
       business_name: lead.business_name, retry_count: toInt(lead.retry_count, 0), raw,
     });
-    updates.push({ lead_id: lead.lead_id, send_block_reason: '', updated_at: now });
+    updates.push({
+      lead_id: lead.lead_id,
+      // Dry run: say plainly why an approved, eligible draft was not sent.
+      send_block_reason: policy.sending_enabled ? '' : truncate(`NOT SENT - sending is off (${policy.blocked_reasons.join('; ')}). Would send in ${mode} mode to ${to}.`, 500),
+      updated_at: now,
+    });
   }
 
   return {
