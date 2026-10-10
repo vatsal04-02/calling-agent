@@ -1,6 +1,6 @@
 # Local Ollama + Qwen3 4B (FH03)
 
-Importable file: `workflows/presets/ollama-qwen3-4b/03-generate-emails.json`. To rebuild it with your own config, run `node scripts/build-workflows.js --preset ollama-qwen3-4b`.
+Importable files: `workflows/presets/ollama-qwen3-4b/03-generate-emails.json` and `04-send-approved-emails.json` (see also [HANDOFF_FH03_FH04.md](HANDOFF_FH03_FH04.md)). To rebuild it with your own config, run `node scripts/build-workflows.js --preset ollama-qwen3-4b`.
 
 ## Why Send_Log stays empty after drafting (this is by design)
 - **FH03 only drafts.** It writes the draft into the lead's own row in **Leads**: `email_subject`, `email_body`, `factual_validation_status`, `generator`, `generated_at`, and `outreach_status` set to `READY_FOR_APPROVAL` or `MANUAL_REVIEW`. It has no Send_Log node.

@@ -171,11 +171,12 @@ async function runSend(store, settings, opts) {
   const base = settings.sending.gmail_api_base;
   if (!/^http:\/\/127\.0\.0\.1:\d+/.test(base)) throw new Error('local-pipeline only sends to a local MOCK Gmail server; real sending happens in n8n');
   const compliance = readJson('config/compliance.json');
-  const gate = evaluateSendQueue({ leads: store.Leads, sendLog: store.Send_Log, suppressionRows: store.Suppression, settings, settingsRows: store.Settings, compliance, now: o.now });
+  const gate = evaluateSendQueue({ leads: store.Leads, sendLog: store.Send_Log, suppressionRows: store.Suppression, settings, settingsRows: store.Settings, compliance, now: o.now, runId: o.runId || 'local-' + Date.now() });
   updateRows(store.Leads, gate.updates, 'lead_id');
   const results = [];
+  if (gate.send.length) setSetting(store, gate.lock_row.key, gate.lock_row.value);
   for (const item of gate.send) {
-    const check = recheckBeforeSend(settings, store.Settings);
+    const check = recheckBeforeSend(settings, store.Settings, { item, leadRows: store.Leads, now: o.now });
     if (!check.ok) { results.push({ lead_id: item.lead_id, outcome: 'stopped', reason: check.reasons.join('; ') }); continue; }
     updateRows(store.Leads, [{ lead_id: item.lead_id, outreach_status: STATUS.SENDING }], 'lead_id');
     let resp;
@@ -192,6 +193,7 @@ async function runSend(store, settings, opts) {
     results.push({ lead_id: item.lead_id, outcome: result.outcome, mode: item.mode, to: item.to });
     if (o.intervalMs) await sleep(o.intervalMs);
   }
+  if (gate.send.length) setSetting(store, 'SEND_LOCK', '');
   return { summary: gate.summary, blocked: gate.blocked, would_send: gate.would_send, results };
 }
 

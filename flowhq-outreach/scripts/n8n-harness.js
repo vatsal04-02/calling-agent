@@ -152,7 +152,7 @@ async function main() {
     await patch((x) => { Object.assign(lead(x, 'Oxford Hair Studio'), { approval_status: 'APPROVED' }); });
     await n8n(['execute', `--id=${ID.send}`]);
     await check('dry run: approved draft shows WHY it was not sent on its Leads row', async () => {
-      assert.match(lead(await sheets(), 'Oxford Hair Studio').send_block_reason, /^NOT SENT - sending is off \(.*SENDING_ENABLED.*\)\. Would send in TEST mode/);
+      assert.match(lead(await sheets(), 'Oxford Hair Studio').send_block_reason, /^NOT SENT - sending is off \(SENDING_ENABLED is not TRUE in the Settings sheet\)\. /);
     });
     await patch((x) => { Object.assign(lead(x, 'Oxford Hair Studio'), { approval_status: 'PENDING' }); });
     await patch((x) => { setSetting(x, 'SENDING_ENABLED', 'TRUE'); setSetting(x, 'TEST_ALLOWLIST', 'owner@flowhq-test.example'); setSetting(x, 'TEST_REDIRECT_TO', 'owner@flowhq-test.example'); });
@@ -162,9 +162,24 @@ async function main() {
       setSetting(x, 'MAX_SENDS_PER_RUN', '2');
       for (const n of ['Bright Smile Dental', 'Harbour Plumbing', 'Oxford Hair Studio']) Object.assign(lead(x, n), { approval_status: 'APPROVED', approved_by: 'harness' });
     });
+    await patch((x) => { Object.assign(lead(x, 'Northside Florist'), { approval_status: 'APPROVED' }); });
+    const logBeforeFirstSend = (await sheets()).send_log.length;
     await n8n(['execute', `--id=${ID.send}`]);
     s = await sheets();
+    await check('EMPTY Send_Log does not block the first eligible sends', () => { assert.strictEqual(logBeforeFirstSend, 0); assert.ok(mk.state.sent.length > 0); });
     await check('per-run cap respected (2 of 3 approved)', () => assert.strictEqual(mk.state.sent.length, 2));
+    await check('approved row without a sendable draft gets a visible reason (status unchanged)', () => {
+      const l = lead(s, 'Northside Florist');
+      assert.match(l.send_block_reason, /^APPROVED but not sendable: outreach_status=MANUAL_REVIEW \(no_recommendation/);
+      assert.strictEqual(l.outreach_status, 'MANUAL_REVIEW');
+    });
+    await check('success record: TEST mode, allowlisted actual recipient, real lead as intended recipient, Gmail id', () => {
+      for (const r of s.send_log) {
+        assert.strictEqual(r.mode, 'TEST'); assert.strictEqual(r.status, 'TEST_SENT'); assert.strictEqual(r.actual_recipient, 'owner@flowhq-test.example');
+        assert.match(r.provider_message_id, /^mock-/); assert.ok(r.intended_recipient && r.intended_recipient !== r.actual_recipient);
+      }
+    });
+    await check('send lock taken during the run and released at the end', () => assert.strictEqual(s.settings.find((r) => r.key === 'SEND_LOCK').value, ''));
     await check('test mode: only the allowlisted inbox receives mail, subject marked [TEST]', () => {
       for (const m of mk.state.sent) { assert.match(m.mime, /^To: owner@flowhq-test\.example/m); assert.match(m.mime, /^Subject: \[TEST\]/m); }
     });
@@ -178,6 +193,9 @@ async function main() {
       const ids = mk.state.sent.map((m) => (/X-FlowHQ-Lead-Id: (\S+)/.exec(m.mime) || [])[1]);
       assert.strictEqual(ids.length, 3);
       assert.strictEqual(new Set(ids).size, 3);
+      const logs = (await sheets()).send_log;
+      assert.strictEqual(logs.length, 3);
+      assert.strictEqual(new Set(logs.map((r) => r.log_id)).size, 3, 'one Send_Log row per send, unique log_id');
     });
 
     console.log('\n04 Send failure handling');
@@ -187,7 +205,12 @@ async function main() {
       for (const n of ['Bright Smile Dental', 'Harbour Plumbing']) Object.assign(lead(x, n), { outreach_status: 'READY_FOR_APPROVAL', reprocess: 'TRUE' });
     });
     const callsBefore = () => mk.state.requests.filter((r) => r.url.includes('messages/send')).length;
+    await patch((x) => setSetting(x, 'SEND_LOCK', `exec-other|${new Date().toISOString()}`));
     let c0 = callsBefore();
+    await n8n(['execute', `--id=${ID.send}`]);
+    await check('overlapping run: a fresh SEND_LOCK held by another execution -> nothing attempted', () => assert.strictEqual(callsBefore() - c0, 0));
+    await patch((x) => setSetting(x, 'SEND_LOCK', ''));
+    c0 = callsBefore();
     await n8n(['execute', `--id=${ID.send}`]);
     s = await sheets();
     await check('Gmail 401 -> kill switch tripped mid-run; second email never attempted', () => {
@@ -199,8 +222,14 @@ async function main() {
     await n8n(['execute', `--id=${ID.send}`]);
     await check('kill switch on -> nothing attempted', () => assert.strictEqual(callsBefore() - c0, 0));
     await patch((x) => { setSetting(x, 'KILL_SWITCH', 'FALSE'); setSetting(x, 'TEST_REDIRECT_TO', 'tempfail@flowhq-test.example'); });
+    const successBefore = (await sheets()).send_log.filter((r) => /SENT$/.test(r.status)).length;
     await n8n(['execute', `--id=${ID.send}`]);
     s = await sheets();
+    await check('failed sends (401, 503) never produce a success record', () => {
+      assert.strictEqual(s.send_log.filter((r) => /SENT$/.test(r.status)).length, successBefore);
+      assert.ok(s.send_log.some((r) => r.status === 'NOT_SENT_AUTH') && s.send_log.some((r) => r.status === 'RETRY_PENDING'));
+      assert.ok(s.send_log.filter((r) => !/SENT$/.test(r.status)).every((r) => !r.provider_message_id));
+    });
     await check('Gmail 503 -> RETRY_PENDING with backoff time', () => {
       for (const n of ['Bright Smile Dental', 'Harbour Plumbing']) { assert.strictEqual(lead(s, n).outreach_status, 'RETRY_PENDING'); assert.ok(lead(s, n).next_retry_at); }
     });

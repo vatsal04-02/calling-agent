@@ -18,9 +18,10 @@ function approvedLead(o, settings) {
   const u = finalizeGeneration(planGeneration(base, catalogue, s, compliance), null, s, compliance);
   return Object.assign(base, u, { approval_status: 'APPROVED' }, o);
 }
-const rows = (kv) => DEFAULT_SETTINGS_ROWS.map((r) => Object.assign({}, r, kv[r.key] !== undefined ? { value: kv[r.key] } : {}));
+const rowsKV = (kv) => DEFAULT_SETTINGS_ROWS.map((r) => Object.assign({}, r, kv[r.key] !== undefined ? { value: kv[r.key] } : {}));
+const rows = rowsKV;
 const settingsWith = (sending) => testSettings(null, { llm: { provider: 'template' }, sending });
-const gate = (leads, s, sheet, extra) => evaluateSendQueue(Object.assign({ leads, sendLog: [], suppressionRows: [], settings: s, settingsRows: rows(sheet || {}), compliance, now: '2026-10-10T12:00:00Z' }, extra));
+const gate = (leads, s, sheet, extra) => evaluateSendQueue(Object.assign({ leads, sendLog: [], suppressionRows: [], settings: s, settingsRows: rowsKV(sheet || {}), compliance, now: '2026-10-10T12:00:00Z', runId: 'exec-42' }, extra));
 
 test('defaults are fail-closed: nothing is sent with the shipped configuration', () => {
   const shipped = readJson('config/settings.default.json');
@@ -199,5 +200,69 @@ test('no sheet column or written row uses the key "error" (n8n retries any node 
   for (const outcome of ['sent', 'temporary', 'permanent', 'auth', 'unknown']) {
     const rec = recordSendResult(item, { outcome, error: 'x', message_id: 'm' }, s);
     assert.ok(!('error' in rec.log) && !('error' in rec.update), outcome);
+  }
+});
+
+test('FH03 -> FH04 handoff: an EMPTY Send_Log does not block the first send', () => {
+  const s = settingsWith({ SENDING_ENABLED: true, test_allowlist: ['sam@demo.example'] });
+  const g = gate([approvedLead()], s, { SENDING_ENABLED: 'TRUE' }, { sendLog: [] });
+  assert.equal(g.send.length, 1);
+  assert.equal(g.summary.sent_last_24h, 0);
+});
+
+test('approved row with no sendable draft is reported on the row, not skipped silently', () => {
+  const s = settingsWith({ SENDING_ENABLED: true, test_allowlist: ['sam@demo.example'] });
+  const l = approvedLead({ outreach_status: 'MANUAL_REVIEW', status_reason: 'sender_settings_incomplete', factual_validation_status: 'FAILED' });
+  const g = gate([l], s, { SENDING_ENABLED: 'TRUE' });
+  assert.equal(g.send.length, 0);
+  assert.match(g.updates[0].send_block_reason, /^APPROVED but not sendable: outreach_status=MANUAL_REVIEW \(sender_settings_incomplete\), factual_validation_status=FAILED/);
+  assert.equal(g.updates[0].outreach_status, undefined, 'status itself is not changed');
+  const again = gate([Object.assign({}, l, { send_block_reason: g.updates[0].send_block_reason })], s, { SENDING_ENABLED: 'TRUE' });
+  assert.equal(again.updates.length, 0, 'no repeated writes once the reason is recorded');
+  assert.equal(gate([approvedLead({ outreach_status: 'SENT' })], s, { SENDING_ENABLED: 'TRUE' }).updates.length, 0, 'moot for already-sent rows');
+});
+
+test('with sending off, the primary reason ("sending is off") is shown first', () => {
+  const s = settingsWith({ SENDING_ENABLED: false });
+  const g = gate([approvedLead()], s, {});
+  assert.match(g.updates[0].send_block_reason, /^NOT SENT - sending is off \(SENDING_ENABLED=false in workflow config.*\)\. test_mode_recipient_not_on_allowlist/);
+});
+
+test('run lock: a fresh lock held by another run blocks the queue; stale or own lock does not', () => {
+  const s = settingsWith({ SENDING_ENABLED: true, test_allowlist: ['sam@demo.example'] });
+  const base = { SENDING_ENABLED: 'TRUE' };
+  const other = gate([approvedLead()], s, Object.assign({ SEND_LOCK: 'exec-41|2026-10-10T11:55:00Z' }, base), { runId: 'exec-42' });
+  assert.equal(other.send.length, 0);
+  assert.match(other.summary.blocked_reasons.join(' '), /another send run \(exec-41\) holds SEND_LOCK/);
+  assert.equal(gate([approvedLead()], s, Object.assign({ SEND_LOCK: 'exec-41|2026-10-10T10:00:00Z' }, base), { runId: 'exec-42' }).send.length, 1, 'stale after 30 min');
+  const g = gate([approvedLead()], s, base, { runId: 'exec-42' });
+  assert.deepEqual(g.lock_row.key, 'SEND_LOCK');
+  assert.match(g.lock_row.value, /^exec-42\|2026-10-10T12:00:00/);
+});
+
+test('per-email recheck uses the freshly re-read lead row (overlapping runs, withdrawn approval, opt-out)', () => {
+  const s = settingsWith({ SENDING_ENABLED: true });
+  const rows = rowsKV({ SENDING_ENABLED: 'TRUE', SEND_LOCK: 'exec-42|2026-10-10T11:59:00Z' });
+  const item = { lead_id: 'L1', run_id: 'exec-42', mode: 'TEST' };
+  const lead = { lead_id: 'L1', outreach_status: 'READY_FOR_APPROVAL', approval_status: 'APPROVED' };
+  const ok = recheckBeforeSend(s, rows, { item, leadRows: [lead], now: '2026-10-10T12:00:00Z' });
+  assert.equal(ok.ok, true, ok.reasons.join());
+  for (const [patch, re] of [[{ outreach_status: 'SENDING' }, /lead is now SENDING/], [{ outreach_status: 'TEST_SENT' }, /lead is now TEST_SENT/],
+    [{ approval_status: 'PENDING' }, /approval withdrawn/], [{ opt_out_status: 'OPTED_OUT' }, /opt_out/]]) {
+    const r = recheckBeforeSend(s, rows, { item, leadRows: [Object.assign({}, lead, patch)], now: '2026-10-10T12:00:00Z' });
+    assert.equal(r.ok, false); assert.match(r.reasons.join(), re);
+  }
+  const stolen = recheckBeforeSend(s, rowsKV({ SENDING_ENABLED: 'TRUE', SEND_LOCK: 'exec-99|2026-10-10T11:59:30Z' }), { item, leadRows: [lead], now: '2026-10-10T12:00:00Z' });
+  assert.match(stolen.reasons.join(), /held by another run \(exec-99\)/);
+});
+
+test('a failed send never produces a success record; success needs 2xx AND a Gmail message id', () => {
+  const s = settingsWith({});
+  const item = { lead_id: 'L1', mode: 'TEST', to: 'a@b.example', intended_to: 'a@b.example', subject: 's', run_id: 'r', retry_count: 0 };
+  for (const resp of [{ statusCode: 503, body: {} }, { statusCode: 200, body: {} }, { error: { message: 'socket hang up' } }, { statusCode: 400, body: { error: { message: 'Invalid To header' } } }]) {
+    const rec = recordSendResult(item, classifySendResult(resp), s);
+    assert.ok(!['SENT', 'TEST_SENT'].includes(rec.log.status), JSON.stringify(resp));
+    assert.ok(!['SENT', 'TEST_SENT'].includes(rec.update.outreach_status));
+    assert.equal(rec.update.provider_message_id, undefined);
   }
 });

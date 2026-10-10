@@ -395,7 +395,7 @@ const g = lib.sendgate.evaluateSendQueue({
   leads: rowsOf('Read Leads'), sendLog: rowsOf('Read Send Log'), suppressionRows: rowsOf('Read Suppression'),
   settings: S, settingsRows: rowsOf('Read Settings'), compliance: CFG.compliance, runId: $execution.id ? 'exec-' + $execution.id : undefined,
 });
-const out = [{ json: Object.assign({ route: 'summary' }, g.summary, { blocked: g.blocked, would_send: g.would_send }) }];
+const out = [{ json: Object.assign({ route: 'summary' }, g.summary, { blocked: g.blocked, would_send: g.would_send, lock_row: g.lock_row }) }];
 for (const u of g.updates) out.push({ json: Object.assign({ route: 'update' }, u) });
 for (const s of g.send) out.push({ json: Object.assign({ route: 'send' }, s) });
 return out;
@@ -404,12 +404,23 @@ return out;
     code('Drop route field', [], `return $input.all().map((i) => { const j = Object.assign({}, i.json); delete j.route; return { json: j }; });`, at(8, -1)),
     sheet('Record block reasons', 'update', 'leads', at(9, -1), { key: 'lead_id' }),
     ifNode('Email to send?', '={{ $json.route }}', 'send', at(7, 0.5)),
-    loop('One email at a time', at(8, 0.5)),
-    sheet('Re-read Settings', 'read', 'settings', at(9, 0.5)),
+    code('Take send lock', [], `
+// Only reached when there is something to send: mark this run as the sender (Settings SEND_LOCK).
+return [{ json: $('Send gate').first().json.lock_row }];
+`, at(8, 0.5)),
+    sheet('Write send lock', 'appendOrUpdate', 'settings', at(9, 0.5), { key: 'key' }),
+    code('Send queue', [], `
+// The emails the gate approved for this run (lock now taken).
+return $('Send gate').all().filter((i) => i.json.route === 'send').map((i) => ({ json: i.json }));
+`, at(10, 0.5)),
+    loop('One email at a time', at(11, 0.5)),
+    sheet('Re-read Settings', 'read', 'settings', at(12, 0.5)),
+    sheet('Re-read Leads', 'read', 'leads', at(13, 0.5)),
     code('Kill-switch check', ['sendgate'], `
-// Re-evaluated before EVERY email so setting KILL_SWITCH=TRUE stops a run mid-way.
+// Re-evaluated before EVERY email from freshly re-read Settings and Leads: KILL_SWITCH stops a run mid-way,
+// and a lead claimed/sent by an overlapping run, un-approved or opted out since the gate ran is skipped.
 const item = $('One email at a time').first().json;
-const check = lib.sendgate.recheckBeforeSend(S, rowsOf('Re-read Settings'));
+const check = lib.sendgate.recheckBeforeSend(S, rowsOf('Re-read Settings'), { item, leadRows: rowsOf('Re-read Leads') });
 if (!check.ok) return [{ json: { proceed: 'no', lead_id: item.lead_id, reasons: check.reasons } }];
 return [{ json: { proceed: 'yes', lead_id: item.lead_id, outreach_status: 'SENDING', updated_at: new Date().toISOString() } }];
 `, at(10, 0.5)),
@@ -429,7 +440,8 @@ return [{ json: { update, log: rec.log, trip: rec.trip_kill_switch, outcome: res
     code('Lead result', [], `return [{ json: $input.first().json.update }];`, at(17, 0)),
     sheet('Save send result', 'update', 'leads', at(18, 0), { key: 'lead_id' }),
     code('Log row', [], `return [{ json: $('Classify result').first().json.log }];`, at(19, 0)),
-    sheet('Append Send Log', 'append', 'send_log', at(20, 0)),
+    // Upsert keyed on log_id: a retried write after a lost response cannot create a second row.
+    sheet('Append Send Log', 'appendOrUpdate', 'send_log', at(20, 0), { key: 'log_id' }),
     code('Settings writes', [], `
 // Always records LAST_SEND_AT; additionally trips the kill switch on Gmail auth/quota errors.
 const r = $('Classify result').first().json;
@@ -449,6 +461,8 @@ return [{ json: { wait_seconds: Math.max(1, p.interval_seconds + jitter) } }];
 const gate = $('Send gate').first().json;
 return [{ json: { mode: gate.mode, sending_enabled: gate.sending_enabled, queued: gate.queued, would_send: gate.would_send, blocked: gate.blocked, blocked_reasons: gate.blocked_reasons } }];
 `, at(9, 1.5)),
+    code('Release send lock', [], `return [{ json: { key: 'SEND_LOCK', value: '', notes: 'released by ' + ($execution.id ? 'exec-' + $execution.id : 'run') + ' at ' + new Date().toISOString() } }];`, at(10, 1.5)),
+    sheet('Clear send lock', 'appendOrUpdate', 'settings', at(11, 1.5), { key: 'key' }),
   ];
   connect(c, 'Every 30 minutes', 'Config');
   chain(c, ['Run manually', 'Config', 'Read Settings', 'Read Leads', 'Read Suppression', 'Read Send Log', 'Send gate']);
@@ -456,10 +470,12 @@ return [{ json: { mode: gate.mode, sending_enabled: gate.sending_enabled, queued
   connect(c, 'Send gate', 'Email to send?');
   connect(c, 'Block-reason update?', 'Drop route field', 0);
   connect(c, 'Drop route field', 'Record block reasons');
-  connect(c, 'Email to send?', 'One email at a time', 0);
+  connect(c, 'Email to send?', 'Take send lock', 0);
+  chain(c, ['Take send lock', 'Write send lock', 'Send queue', 'One email at a time']);
   connect(c, 'One email at a time', 'Send summary', 0);
+  chain(c, ['Send summary', 'Release send lock', 'Clear send lock']);
   connect(c, 'One email at a time', 'Re-read Settings', 1);
-  chain(c, ['Re-read Settings', 'Kill-switch check', 'Still allowed?']);
+  chain(c, ['Re-read Settings', 'Re-read Leads', 'Kill-switch check', 'Still allowed?']);
   connect(c, 'Still allowed?', 'Claim lead', 0);
   connect(c, 'Still allowed?', 'One email at a time', 1);
   chain(c, ['Claim lead', 'Mark SENDING', 'Message payload', 'Gmail API send', 'Classify result', 'Lead result', 'Save send result', 'Log row', 'Append Send Log', 'Settings writes', 'Update Settings', 'Pause before next email', 'Wait', 'One email at a time']);
@@ -653,6 +669,16 @@ function main() {
   for (const [file, build] of builders) {
     const wf = build(settings);
     if (settings.workflow_name_suffix) wf.name += settings.workflow_name_suffix;
+    // Keep node IDs stable across rebuilds: reuse the ID of any same-named node in the file being replaced.
+    const target = path.join(outDir, `${file}.json`);
+    if (fs.existsSync(target)) {
+      try {
+        const prev = JSON.parse(fs.readFileSync(target, 'utf8'));
+        const ids = new Map(prev.nodes.map((n) => [n.name, n.id]));
+        const used = new Set();
+        for (const n of wf.nodes) if (ids.has(n.name) && !used.has(ids.get(n.name))) { n.id = ids.get(n.name); used.add(n.id); }
+      } catch (e) { /* unreadable previous file: keep generated IDs */ }
+    }
     fs.writeFileSync(path.join(outDir, `${file}.json`), JSON.stringify(wf, null, 2) + '\n');
     console.log(`${file}.json: ${wf.nodes.length} nodes`);
   }

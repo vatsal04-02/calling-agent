@@ -42,6 +42,7 @@ Nothing in the workflows depends on a particular spreadsheet or column names:
 | `TEST_REDIRECT_TO` | (empty) | An allowlisted inbox that receives a `[TEST]` copy of each approved draft. |
 | `MAX_SENDS_PER_RUN`, `MAX_SENDS_PER_DAY` | 5, 20 | The lower of the sheet and config values applies. |
 | `SEND_INTERVAL_SECONDS` | 90 | The higher of the sheet and config values applies. |
+| `SEND_LOCK` | (empty) | Managed by FH04: holds `<run>\|<time>` while a send run is in progress so overlapping runs cannot work the same queue; ignored after 30 minutes. Leave it alone. |
 | `RESEARCH_BATCH_SIZE`, `GENERATION_BATCH_SIZE` | 10, 10 | Leads per run. The lower value applies. |
 
 ### Other tabs

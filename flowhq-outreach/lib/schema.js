@@ -42,6 +42,7 @@ const DEFAULT_SETTINGS_ROWS = [
   { key: 'MAX_SENDS_PER_RUN', value: '5', notes: 'The lower of this and the workflow config applies.' },
   { key: 'MAX_SENDS_PER_DAY', value: '20', notes: 'Rolling 24 hours. The lower of this and the workflow config applies.' },
   { key: 'SEND_INTERVAL_SECONDS', value: '90', notes: 'Minimum gap between emails. The higher of this and the workflow config applies.' },
+  { key: 'SEND_LOCK', value: '', notes: 'Managed by workflow 04: holds "<run>|<time>" while a send run is in progress so overlapping runs cannot work the same queue. Expires after 30 minutes. Leave empty.' },
   { key: 'RESEARCH_BATCH_SIZE', value: '10', notes: 'Leads researched per run.' },
   { key: 'GENERATION_BATCH_SIZE', value: '10', notes: 'Drafts generated per run.' },
 ];

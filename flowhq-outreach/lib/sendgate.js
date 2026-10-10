@@ -29,6 +29,22 @@ function logIndex(sendLog, now, cooldownDays) {
   return idx;
 }
 
+// Run lock stored in the Settings tab (key SEND_LOCK, value "<run_id>|<iso time>").
+// Stops two overlapping executions (e.g. a manual run during a scheduled one) from
+// working the same queue. A crashed run's lock expires after LOCK_TTL_MINUTES.
+const LOCK_KEY = 'SEND_LOCK';
+const LOCK_TTL_MINUTES = 30;
+
+function readLock(settingsRows, now) {
+  const row = (settingsRows || []).find((r) => clean(r.key).toUpperCase() === LOCK_KEY);
+  const value = clean(row && row.value);
+  if (!value) return { held: false };
+  const [run, at] = value.split('|');
+  const age = (new Date(now).getTime() - Date.parse(at)) / 60000;
+  if (!Number.isFinite(age) || age > LOCK_TTL_MINUTES) return { held: false, stale: true, run };
+  return { held: true, run, at };
+}
+
 function complianceIssues(lead, rules) {
   const out = [];
   if (!rules) return ['no_compliance_profile_for_country'];
@@ -69,8 +85,28 @@ function evaluateSendQueue(input) {
   const updates = [];
   const sender = settings.sender || {};
 
+  const lock = readLock(settingsRows, now);
+  const lockedByOther = lock.held && lock.run !== runId;
+  if (lockedByOther) policy.blocked_reasons.push(`another send run (${lock.run}) holds ${LOCK_KEY} since ${lock.at}`);
+  const sendingAllowed = policy.sending_enabled && !lockedByOther;
+  const offPrefix = sendingAllowed ? '' : `NOT SENT - sending is off (${policy.blocked_reasons.join('; ')}). `;
+  // Statuses where an approval is simply moot (already handled, or a hard stop): no message needed.
+  const MOOT = new Set([STATUS.SENDING, STATUS.SENT, STATUS.TEST_SENT, STATUS.SEND_UNKNOWN, STATUS.FAILED, STATUS.RETRY_PENDING,
+    STATUS.REPLIED, STATUS.UNSUBSCRIBED, STATUS.BOUNCED, STATUS.SUPPRESSED, STATUS.DUPLICATE, STATUS.INVALID]);
+
   for (const lead of leads || []) {
-    if (!isEligibleStatus(lead, policy, now)) continue;
+    if (!isEligibleStatus(lead, policy, now)) {
+      // A human approved a row that has no sendable draft: say so instead of skipping silently.
+      const st = clean(lead.outreach_status);
+      if (clean(lead.approval_status).toUpperCase() === APPROVAL.APPROVED && !MOOT.has(st)) {
+        const why = truncate(`APPROVED but not sendable: outreach_status=${st || '(empty)'}` +
+          (clean(lead.status_reason) ? ` (${clean(lead.status_reason)})` : '') +
+          `, factual_validation_status=${clean(lead.factual_validation_status) || '(none)'}. Only READY_FOR_APPROVAL drafts that PASSED validation can be sent; fix the cause and regenerate (set reprocess=TRUE).`, 500);
+        blocked.push({ lead_id: lead.lead_id, reason: why });
+        if (clean(lead.send_block_reason) !== why) updates.push({ lead_id: lead.lead_id, send_block_reason: why, updated_at: now });
+      }
+      continue;
+    }
     const reasons = [];
     const email = normalizeEmail(lead.email, { allowSynthetic: !!settings.allow_synthetic_domains });
     const approval = clean(lead.approval_status).toUpperCase();
@@ -134,7 +170,7 @@ function evaluateSendQueue(input) {
     }
     if (reasons.length) {
       blocked.push({ lead_id: lead.lead_id, reason: reasons.join('; ') });
-      updates.push({ lead_id: lead.lead_id, send_block_reason: truncate(reasons.join('; '), 500), updated_at: now });
+      updates.push({ lead_id: lead.lead_id, send_block_reason: truncate(offPrefix + reasons.join('; '), 500), updated_at: now });
       continue;
     }
     if (send.length >= capacity) {
@@ -163,28 +199,30 @@ function evaluateSendQueue(input) {
     updates.push({
       lead_id: lead.lead_id,
       // Dry run: say plainly why an approved, eligible draft was not sent.
-      send_block_reason: policy.sending_enabled ? '' : truncate(`NOT SENT - sending is off (${policy.blocked_reasons.join('; ')}). Would send in ${mode} mode to ${to}.`, 500),
+      send_block_reason: sendingAllowed ? '' : truncate(`${offPrefix}Would send in ${mode} mode to ${to}.`, 500),
       updated_at: now,
     });
   }
 
   return {
     policy,
-    send: policy.sending_enabled ? send : [],
-    would_send: policy.sending_enabled ? [] : send.map((s) => ({ lead_id: s.lead_id, mode: s.mode, to: s.to })),
+    send: sendingAllowed ? send : [],
+    would_send: sendingAllowed ? [] : send.map((s) => ({ lead_id: s.lead_id, mode: s.mode, to: s.to })),
     blocked,
     updates,
     summary: {
       run_id: runId,
-      sending_enabled: policy.sending_enabled,
+      sending_enabled: sendingAllowed,
       mode: policy.live ? 'LIVE' : 'TEST',
       blocked_reasons: policy.blocked_reasons,
       sent_last_24h: idx.last24h,
       capacity,
-      queued: policy.sending_enabled ? send.length : 0,
-      would_send: policy.sending_enabled ? 0 : send.length,
+      queued: sendingAllowed ? send.length : 0,
+      would_send: sendingAllowed ? 0 : send.length,
       blocked: blocked.length,
     },
+    // Written to Settings before the first email; released when the loop finishes.
+    lock_row: { key: LOCK_KEY, value: `${runId}|${now}`, notes: 'held by the running send execution; cleared when it finishes; ignored after 30 minutes' },
   };
 }
 
@@ -264,9 +302,30 @@ function recordSendResult(sendItem, result, settings, now) {
 }
 
 // Re-evaluated before every single send so the kill switch takes effect mid-run.
-function recheckBeforeSend(settings, settingsRows) {
+// Re-evaluated immediately before EACH email, from freshly re-read Settings and Leads:
+// kill switch / switches, lock ownership, and the lead row's CURRENT state (so a lead
+// claimed, sent, opted out or un-approved since the gate ran is never sent).
+function recheckBeforeSend(settings, settingsRows, ctx) {
   const policy = effectivePolicy(settings, settingsRows);
-  return { ok: policy.sending_enabled, reasons: policy.blocked_reasons, policy };
+  const reasons = policy.sending_enabled ? [] : policy.blocked_reasons.slice();
+  const c = ctx || {};
+  if (c.item) {
+    const now = isoNow(c.now);
+    const lock = readLock(settingsRows, now);
+    if (lock.held && lock.run !== c.item.run_id) reasons.push(`${LOCK_KEY} held by another run (${lock.run})`);
+    if (c.leadRows) {
+      const row = c.leadRows.find((r) => clean(r.lead_id) === clean(c.item.lead_id));
+      if (!row) reasons.push('lead row not found on re-read');
+      else {
+        const st = clean(row.outreach_status);
+        const okStatus = st === STATUS.READY_FOR_APPROVAL || st === STATUS.RETRY_PENDING || (st === STATUS.TEST_SENT && c.item.mode === 'LIVE');
+        if (!okStatus) reasons.push(`lead is now ${st || '(empty)'} (claimed or handled by another run, or changed by a reviewer)`);
+        if (policy.require_approval && clean(row.approval_status).toUpperCase() !== APPROVAL.APPROVED) reasons.push('approval withdrawn');
+        if (clean(row.opt_out_status)) reasons.push(`opt_out:${clean(row.opt_out_status)}`);
+      }
+    }
+  }
+  return { ok: reasons.length === 0, reasons, policy };
 }
 
-module.exports = { evaluateSendQueue, classifySendResult, recordSendResult, recheckBeforeSend, complianceIssues };
+module.exports = { evaluateSendQueue, classifySendResult, recordSendResult, recheckBeforeSend, complianceIssues, readLock, LOCK_KEY, LOCK_TTL_MINUTES };
