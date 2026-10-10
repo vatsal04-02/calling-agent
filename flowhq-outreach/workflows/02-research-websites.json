@@ -1,0 +1,511 @@
+{
+  "id": "FlowHQ02Research",
+  "name": "FlowHQ 02 - Research websites",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## FlowHQ 02 - Research websites\nFor VALIDATED leads (and rows marked reprocess=TRUE): respects robots.txt, fetches the homepage plus at most 3 relevant pages (contact, booking, services, quote, FAQ), records evidence with URLs and quotes, caches results per domain.\n\nInaccessible, blocked, JS-only or thin sites go to MANUAL_REVIEW. Nothing is ever invented.\n\nThe schedule trigger only runs once you activate the workflow.",
+        "height": 340,
+        "width": 420
+      },
+      "id": "fhq-0021-notes",
+      "name": "Notes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -520,
+        -380
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "fhq-0013-run-manually",
+      "name": "Run manually",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 60
+            }
+          ]
+        }
+      },
+      "id": "fhq-0014-every-hour",
+      "name": "Every hour",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Static FlowHQ configuration (generated from config/*.json). No secrets here: keys live in n8n credentials.\nreturn [{ json: {\n \"settings\": {\n  \"_comment\": \"Static, non-secret configuration baked into every workflow's 'Config' node by scripts/build-workflows.js. Copy to config/settings.local.json (git-ignored) to override. Secrets never go here: API keys and OAuth tokens live in n8n credentials.\",\n  \"spreadsheet_id\": \"REPLACE_WITH_OUTREACH_SPREADSHEET_ID\",\n  \"source\": {\n   \"_comment\": \"Where your raw leads live. Leave spreadsheet_id empty to use the outreach spreadsheet above. The source sheet is only ever READ.\",\n   \"spreadsheet_id\": \"\",\n   \"sheet_name\": \"Leads_Source\"\n  },\n  \"sheets\": {\n   \"leads\": \"Leads\",\n   \"research_cache\": \"Research_Cache\",\n   \"send_log\": \"Send_Log\",\n   \"suppression\": \"Suppression\",\n   \"error_log\": \"Error_Log\",\n   \"settings\": \"Settings\",\n   \"inbox_log\": \"Inbox_Log\"\n  },\n  \"sender\": {\n   \"name\": \"REPLACE_WITH_YOUR_NAME\",\n   \"email\": \"REPLACE_WITH_GMAIL_ADDRESS\",\n   \"company\": \"FlowHQ\",\n   \"website\": \"https://flowhq.in\",\n   \"postal_address\": \"REPLACE_WITH_POSTAL_ADDRESS\",\n   \"reply_to\": \"\",\n   \"unsubscribe_mailto\": \"\",\n   \"unsubscribe_url_base\": \"\",\n   \"company_description\": \"FlowHQ builds custom websites and AI automation systems for small and medium-sized businesses.\"\n  },\n  \"sending\": {\n   \"SENDING_ENABLED\": false,\n   \"TEST_MODE\": true,\n   \"REQUIRE_APPROVAL\": true,\n   \"test_allowlist\": [],\n   \"test_redirect_to\": \"\",\n   \"max_sends_per_run\": 5,\n   \"max_sends_per_day\": 20,\n   \"send_interval_seconds\": 90,\n   \"send_jitter_seconds\": 30,\n   \"max_retries\": 3,\n   \"retry_backoff_minutes\": 30,\n   \"domain_cooldown_days\": 180,\n   \"one_contact_per_domain\": true,\n   \"live_approval\": {\n    \"_comment\": \"Live sending stays blocked until BOTH fields are filled in by the account owner after reviewing test results.\",\n    \"approved_by\": \"\",\n    \"approved_at\": \"\"\n   },\n   \"gmail_api_base\": \"https://gmail.googleapis.com\"\n  },\n  \"research\": {\n   \"user_agent\": \"FlowHQ-ResearchBot/1.0 (+https://flowhq.in; business website review)\",\n   \"max_pages_per_site\": 4,\n   \"request_timeout_ms\": 15000,\n   \"request_interval_ms\": 1500,\n   \"max_html_chars\": 600000,\n   \"min_text_chars\": 400,\n   \"cache_days\": 30,\n   \"batch_size\": 10,\n   \"respect_robots_txt\": true\n  },\n  \"generation\": {\n   \"batch_size\": 10,\n   \"min_confidence\": 0.6,\n   \"max_signals\": 2,\n   \"max_services\": 2,\n   \"body_min_words\": 60,\n   \"body_max_words\": 170,\n   \"subject_max_chars\": 60,\n   \"no_recommendation_action\": \"MANUAL_REVIEW\"\n  },\n  \"llm\": {\n   \"_comment\": \"provider: anthropic | openai_compatible | template. 'template' uses no AI model at all (zero cost, more formulaic wording). The API key is stored in the n8n credential named in credential_type, never here.\",\n   \"provider\": \"anthropic\",\n   \"model\": \"claude-haiku-5-5\",\n   \"endpoint\": \"https://api.anthropic.com/v1/messages\",\n   \"credential_type\": \"anthropicApi\",\n   \"max_tokens\": 3000,\n   \"effort\": \"low\",\n   \"openai_response_format\": \"json_object\",\n   \"temperature\": 0.4\n  },\n  \"countries\": {\n   \"enabled\": [\n    \"US\",\n    \"GB\",\n    \"AU\",\n    \"NZ\"\n   ]\n  },\n  \"allow_synthetic_domains\": false,\n  \"fixture_base_url\": \"\"\n },\n \"catalogue\": {\n  \"_comment\": \"FlowHQ services the system may recommend. Only services with enabled=true are ever suggested. Review every entry and disable anything FlowHQ cannot currently deliver. 'signals' lists the website observations a service can address (see lib/signals.js); 'weight' scales how strongly that observation supports the service. Benefit statements are the only benefit wording the email writer may use.\",\n  \"services\": [\n   {\n    \"id\": \"appointment_scheduling\",\n    \"enabled\": true,\n    \"name\": \"Online booking and appointment reminders\",\n    \"description\": \"Lets customers book or request appointments online, with automatic confirmations, reminders and rescheduling links.\",\n    \"pitch\": \"an online booking option with automatic confirmations and reminders\",\n    \"signals\": {\n     \"booking_by_phone_or_email\": 1,\n     \"booking_not_found\": 0.85,\n     \"pdf_intake_forms\": 0.3\n    },\n    \"industries_fit\": [\n     \"appointment\"\n    ],\n    \"required_integrations\": [\n     \"Existing calendar or practice-management system (e.g. Google Calendar, Cliniko, Square Appointments)\",\n     \"SMS or email sender\"\n    ],\n    \"limitations\": \"Depends on the business's calendar or practice-management system offering an integration; some regulated industries need extra privacy review.\",\n    \"approved_benefits\": [\n     \"customers can book at a time that suits them, including outside opening hours\",\n     \"fewer phone calls and emails spent arranging times\",\n     \"automatic reminders that can help reduce missed appointments\"\n    ],\n    \"example_use_cases\": [\n     \"Dental clinic online booking with SMS reminders\",\n     \"Physio rescheduling links\"\n    ]\n   },\n   {\n    \"id\": \"ai_receptionist\",\n    \"enabled\": true,\n    \"name\": \"AI phone receptionist\",\n    \"description\": \"Answers inbound calls when the team is busy or closed, captures the caller's details and reason for calling, and passes a summary to the team.\",\n    \"pitch\": \"an AI receptionist that answers calls when the team is busy or closed and sends you a summary of each one\",\n    \"signals\": {\n     \"phone_primary_contact\": 0.9,\n     \"opening_hours_listed\": 0.7,\n     \"booking_by_phone_or_email\": 0.6\n    },\n    \"industries_fit\": [\n     \"*\"\n    ],\n    \"required_integrations\": [\n     \"Call forwarding from the business's phone number\",\n     \"Email, SMS or CRM for call summaries\"\n    ],\n    \"limitations\": \"Needs the business to forward calls; it handles routine calls and hands off anything complex to a person.\",\n    \"approved_benefits\": [\n     \"calls outside opening hours or during busy periods still get answered\",\n     \"the team receives a short summary of each call instead of a voicemail\",\n     \"routine questions can be answered without interrupting staff\"\n    ],\n    \"example_use_cases\": [\n     \"After-hours call answering for a plumbing business\",\n     \"Overflow calls for a busy clinic front desk\"\n    ]\n   },\n   {\n    \"id\": \"enquiry_followup\",\n    \"enabled\": true,\n    \"name\": \"Enquiry acknowledgement and follow-up\",\n    \"description\": \"Sends an immediate, personalised acknowledgement to each website enquiry, organises the details, notifies the right person and schedules follow-up reminders.\",\n    \"pitch\": \"an automated enquiry workflow that acknowledges each new request straight away, organises the details and reminds the team to follow up\",\n    \"signals\": {\n     \"contact_form_present\": 0.8,\n     \"quote_by_phone_or_email\": 0.5,\n     \"many_services_listed\": 0.5\n    },\n    \"industries_fit\": [\n     \"*\"\n    ],\n    \"required_integrations\": [\n     \"Website form\",\n     \"Email\",\n     \"Optional CRM or spreadsheet\"\n    ],\n    \"limitations\": \"Works best when enquiries arrive through a form or a single inbox.\",\n    \"approved_benefits\": [\n     \"every enquiry gets a prompt acknowledgement, even when the team is busy\",\n     \"enquiry details arrive organised in one place\",\n     \"follow-ups happen consistently instead of relying on memory\"\n    ],\n    \"example_use_cases\": [\n     \"Auto-acknowledge and route contact-form enquiries to the right team member\"\n    ]\n   },\n   {\n    \"id\": \"quote_request_workflow\",\n    \"enabled\": true,\n    \"name\": \"Online quote-request workflow\",\n    \"description\": \"A short guided quote-request form that collects the job details up front, acknowledges the request and notifies the team.\",\n    \"pitch\": \"a short online quote-request form that collects the job details up front and acknowledges each request automatically\",\n    \"signals\": {\n     \"quote_by_phone_or_email\": 1\n    },\n    \"industries_fit\": [\n     \"trades\",\n     \"services\"\n    ],\n    \"required_integrations\": [\n     \"Website\",\n     \"Email or CRM\"\n    ],\n    \"limitations\": \"Final pricing still comes from the business; the workflow collects the details needed to quote.\",\n    \"approved_benefits\": [\n     \"customers can request a quote whenever suits them\",\n     \"the team receives the details needed to quote without back-and-forth\",\n     \"each request gets an immediate acknowledgement\"\n    ],\n    \"example_use_cases\": [\n     \"Electrician quote form with photo upload and instant acknowledgement\"\n    ]\n   },\n   {\n    \"id\": \"lead_capture_crm\",\n    \"enabled\": true,\n    \"name\": \"Lead capture and CRM automation\",\n    \"description\": \"Captures enquiries from the website, email and phone into one organised list or CRM, with automatic tagging and reminders.\",\n    \"pitch\": \"a simple enquiry form connected to an organised enquiry list, so every request is captured in one place\",\n    \"signals\": {\n     \"no_contact_form_found\": 0.85,\n     \"contact_form_present\": 0.4\n    },\n    \"industries_fit\": [\n     \"*\"\n    ],\n    \"required_integrations\": [\n     \"Website\",\n     \"Email\",\n     \"CRM or Google Sheets\"\n    ],\n    \"limitations\": \"Requires agreement on where enquiries should be stored.\",\n    \"approved_benefits\": [\n     \"enquiries from different channels end up in one organised place\",\n     \"less manual copying of enquiry details\",\n     \"it's easier to see which enquiries still need a reply\"\n    ],\n    \"example_use_cases\": [\n     \"Website form plus inbox parsing into a shared CRM\"\n    ]\n   },\n   {\n    \"id\": \"ai_website_assistant\",\n    \"enabled\": true,\n    \"name\": \"AI website assistant\",\n    \"description\": \"An assistant on the website that answers common questions from the business's own content and collects enquiry details when someone is ready to get in touch.\",\n    \"pitch\": \"an AI assistant on the website that answers common questions from your own content and collects enquiry details\",\n    \"signals\": {\n     \"faq_extensive\": 1,\n     \"opening_hours_listed\": 0.4,\n     \"no_contact_form_found\": 0.4,\n     \"many_services_listed\": 0.4\n    },\n    \"industries_fit\": [\n     \"*\"\n    ],\n    \"exclude_if_signals\": [\n     \"chat_widget_present\"\n    ],\n    \"required_integrations\": [\n     \"Website script embed\",\n     \"Business-approved knowledge content\"\n    ],\n    \"limitations\": \"Answers only from approved content and hands off anything it cannot answer.\",\n    \"approved_benefits\": [\n     \"visitors get answers to common questions straight away\",\n     \"fewer repetitive questions reach the team\",\n     \"enquiry details are collected even outside business hours\"\n    ],\n    \"example_use_cases\": [\n     \"FAQ assistant for a veterinary clinic that also collects appointment requests\"\n    ]\n   },\n   {\n    \"id\": \"client_onboarding\",\n    \"enabled\": true,\n    \"name\": \"Client onboarding and intake forms\",\n    \"description\": \"Replaces downloadable paperwork with online intake forms that feed directly into the business's systems, with automatic reminders to complete them.\",\n    \"pitch\": \"online intake forms that feed straight into your systems, with automatic reminders to complete them\",\n    \"signals\": {\n     \"pdf_intake_forms\": 1\n    },\n    \"industries_fit\": [\n     \"*\"\n    ],\n    \"required_integrations\": [\n     \"Online form tool\",\n     \"Practice-management system, CRM or secure storage\"\n    ],\n    \"limitations\": \"Health and legal businesses may need specific privacy and data-storage requirements reviewed.\",\n    \"approved_benefits\": [\n     \"clients can complete forms online before their first visit\",\n     \"less time re-typing details from paper or PDF forms\",\n     \"automatic reminders for forms that haven't been completed\"\n    ],\n    \"example_use_cases\": [\n     \"New-patient intake form for a physiotherapy clinic\"\n    ]\n   },\n   {\n    \"id\": \"enquiry_journey_improvements\",\n    \"enabled\": true,\n    \"name\": \"Website enquiry journey improvements\",\n    \"description\": \"Small website changes that make the next step obvious, such as a clear call to action and contact options that are easy to find.\",\n    \"pitch\": \"a few small website changes that make the next step obvious, such as a clear call to action and easy-to-find contact options\",\n    \"signals\": {\n     \"no_clear_cta_homepage\": 1,\n     \"contact_not_on_homepage\": 1,\n     \"no_mobile_viewport\": 0.6\n    },\n    \"industries_fit\": [\n     \"*\"\n    ],\n    \"required_integrations\": [\n     \"Website edit access\"\n    ],\n    \"limitations\": \"Recommendations are based on a limited review of public pages, not analytics.\",\n    \"approved_benefits\": [\n     \"visitors can see the next step quickly\",\n     \"it's easier for interested customers to get in touch\"\n    ],\n    \"example_use_cases\": [\n     \"Adding a clear 'Book a consultation' button and contact details to the homepage\"\n    ]\n   },\n   {\n    \"id\": \"review_requests\",\n    \"enabled\": true,\n    \"name\": \"Review-request automation\",\n    \"description\": \"Automatically asks happy customers for a review after a completed job or appointment.\",\n    \"pitch\": \"an automatic review request sent after each completed job or appointment\",\n    \"signals\": {\n     \"reviews_mentioned\": 0.6\n    },\n    \"industries_fit\": [\n     \"*\"\n    ],\n    \"required_integrations\": [\n     \"Booking or job-completion trigger\",\n     \"SMS or email\"\n    ],\n    \"limitations\": \"Must follow the review platform's rules; no incentives or review gating.\",\n    \"approved_benefits\": [\n     \"review requests go out consistently after each job\",\n     \"less manual effort spent asking for reviews\"\n    ],\n    \"example_use_cases\": [\n     \"Google review request sent the day after a completed service\"\n    ]\n   },\n   {\n    \"id\": \"support_triage\",\n    \"enabled\": true,\n    \"name\": \"Customer support triage\",\n    \"description\": \"Sorts incoming messages by topic and urgency and routes them to the right person, with suggested replies for common questions.\",\n    \"pitch\": \"a workflow that sorts incoming messages by topic and urgency and routes them to the right person\",\n    \"signals\": {\n     \"chat_widget_present\": 0.4,\n     \"many_services_listed\": 0.3\n    },\n    \"industries_fit\": [\n     \"*\"\n    ],\n    \"required_integrations\": [\n     \"Shared inbox or helpdesk\"\n    ],\n    \"limitations\": \"Suggested replies are reviewed by staff before sending.\",\n    \"approved_benefits\": [\n     \"urgent messages reach the right person sooner\",\n     \"less time spent sorting the inbox\"\n    ],\n    \"example_use_cases\": [\n     \"Routing service, billing and booking emails to different team members\"\n    ]\n   },\n   {\n    \"id\": \"reporting_admin\",\n    \"enabled\": true,\n    \"name\": \"Internal reporting and admin automation\",\n    \"description\": \"Automates repetitive admin such as weekly enquiry summaries, data entry between systems and status reports.\",\n    \"pitch\": \"automating repetitive admin such as weekly enquiry summaries\",\n    \"signals\": {},\n    \"industries_fit\": [\n     \"*\"\n    ],\n    \"required_integrations\": [\n     \"Varies by business\"\n    ],\n    \"limitations\": \"Not recommended from a website review alone; only discussed once internal processes are known.\",\n    \"approved_benefits\": [\n     \"less time spent on repetitive admin\"\n    ],\n    \"example_use_cases\": [\n     \"Weekly summary of new enquiries and bookings emailed to the owner\"\n    ]\n   }\n  ],\n  \"industry_groups\": {\n   \"appointment\": [\n    \"dental\",\n    \"dentist\",\n    \"orthodont\",\n    \"clinic\",\n    \"medical\",\n    \"doctor\",\n    \"gp\",\n    \"physio\",\n    \"physiotherap\",\n    \"chiropract\",\n    \"osteopath\",\n    \"podiatr\",\n    \"optometr\",\n    \"optician\",\n    \"psycholog\",\n    \"counsel\",\n    \"therap\",\n    \"massage\",\n    \"salon\",\n    \"hair\",\n    \"barber\",\n    \"beauty\",\n    \"spa\",\n    \"nail\",\n    \"lash\",\n    \"brow\",\n    \"aesthetic\",\n    \"cosmetic\",\n    \"vet\",\n    \"veterinar\",\n    \"groom\",\n    \"fitness\",\n    \"gym\",\n    \"personal trainer\",\n    \"pilates\",\n    \"yoga\",\n    \"tutor\",\n    \"driving school\",\n    \"audiolog\",\n    \"dietit\",\n    \"naturopath\",\n    \"acupunct\"\n   ],\n   \"trades\": [\n    \"plumb\",\n    \"electric\",\n    \"hvac\",\n    \"heating\",\n    \"air condition\",\n    \"roof\",\n    \"builder\",\n    \"construct\",\n    \"landscap\",\n    \"garden\",\n    \"paint\",\n    \"carpent\",\n    \"handyman\",\n    \"clean\",\n    \"pest\",\n    \"lock\",\n    \"glaz\",\n    \"fenc\",\n    \"pool\",\n    \"solar\",\n    \"flooring\",\n    \"tiling\",\n    \"renovat\",\n    \"removal\",\n    \"moving\",\n    \"concrete\",\n    \"gutter\",\n    \"arborist\",\n    \"tree\"\n   ],\n   \"services\": [\n    \"law\",\n    \"legal\",\n    \"solicitor\",\n    \"attorney\",\n    \"accountant\",\n    \"accounting\",\n    \"bookkeep\",\n    \"tax\",\n    \"real estate\",\n    \"property\",\n    \"mortgage\",\n    \"insurance\",\n    \"consult\",\n    \"agency\",\n    \"marketing\",\n    \"architect\",\n    \"engineer\",\n    \"photograph\",\n    \"event\",\n    \"wedding\",\n    \"catering\",\n    \"printing\",\n    \"signage\",\n    \"auto\",\n    \"mechanic\",\n    \"car repair\",\n    \"detailing\",\n    \"storage\",\n    \"it support\",\n    \"web design\"\n   ]\n  }\n },\n \"compliance\": {\n  \"_comment\": \"Per-country sending gates enforced by the Send workflow. This is an engineering control, not legal advice: see docs/COMPLIANCE.md and confirm with a lawyer before live sending. Add a country here before enabling it in settings.countries.enabled.\",\n  \"countries\": {\n   \"US\": {\n    \"law\": \"CAN-SPAM Act (15 U.S.C. 7701-7713) and FTC CAN-SPAM Rule\",\n    \"consent_model\": \"opt_out\",\n    \"require_legal_basis_confirmation\": false,\n    \"require_published_address_evidence\": false,\n    \"require_postal_address\": true,\n    \"require_unsubscribe\": true,\n    \"require_ad_disclosure\": true,\n    \"language\": \"en-US\",\n    \"notes\": \"No prior consent required for B2B email, but every message needs accurate headers, a non-deceptive subject, identification as an advertisement/solicitation, a valid physical postal address and a working opt-out honoured promptly.\"\n   },\n   \"GB\": {\n    \"law\": \"Privacy and Electronic Communications Regulations 2003 (PECR) and UK GDPR\",\n    \"consent_model\": \"corporate_subscriber_opt_out_individual_subscriber_consent\",\n    \"require_legal_basis_confirmation\": true,\n    \"require_published_address_evidence\": false,\n    \"require_postal_address\": true,\n    \"require_unsubscribe\": true,\n    \"require_ad_disclosure\": false,\n    \"language\": \"en-GB\",\n    \"notes\": \"Unsolicited marketing email to corporate subscribers (limited companies, LLPs, Scottish partnerships, government bodies) is permitted without consent if the sender is identified and an opt-out is provided. Sole traders and ordinary partnerships are individual subscribers and generally need prior consent. Named employee addresses are personal data under UK GDPR, so a documented legitimate-interests assessment and a privacy notice are needed. Set legal_basis_confirmed=TRUE on a lead only after confirming it is a corporate subscriber.\"\n   },\n   \"AU\": {\n    \"law\": \"Spam Act 2003 (Cth), enforced by ACMA\",\n    \"consent_model\": \"express_or_inferred_consent\",\n    \"require_legal_basis_confirmation\": false,\n    \"require_published_address_evidence\": true,\n    \"require_postal_address\": false,\n    \"require_unsubscribe\": true,\n    \"require_ad_disclosure\": false,\n    \"language\": \"en-GB\",\n    \"notes\": \"Commercial email needs consent. Inferred consent from a conspicuously published address applies only if the address is publicly published, the publication does not say unsolicited messages are unwanted, and the message relates directly to the recipient's role or business. The workflow records where the address was found; a human must still confirm role relevance at approval time. Sender identification and a functional unsubscribe are mandatory; unsubscribes must be honoured within 5 business days.\"\n   },\n   \"NZ\": {\n    \"law\": \"Unsolicited Electronic Messages Act 2007, enforced by the Department of Internal Affairs\",\n    \"consent_model\": \"express_deemed_or_inferred_consent\",\n    \"require_legal_basis_confirmation\": false,\n    \"require_published_address_evidence\": true,\n    \"require_postal_address\": false,\n    \"require_unsubscribe\": true,\n    \"require_ad_disclosure\": false,\n    \"language\": \"en-GB\",\n    \"notes\": \"Commercial email needs consent. Deemed consent applies where a business address is conspicuously published, there is no statement refusing unsolicited messages, and the message is relevant to the recipient's business role. The sender bears the burden of proving consent. Sender identification and a functional unsubscribe are mandatory; unsubscribes must be honoured within 5 working days.\"\n   }\n  },\n  \"no_unsolicited_patterns\": [\n   \"no unsolicited\",\n   \"unsolicited (?:emails?|messages?|marketing|solicitations?) (?:are|is) not (?:accepted|welcome|wanted)\",\n   \"do not (?:send|email) (?:us )?(?:unsolicited|marketing|sales|spam)\",\n   \"no (?:marketing|sales|spam|solicitations?|cold) (?:emails?|calls?|enquiries|inquiries|please)\",\n   \"not accept (?:unsolicited|marketing|sales)\",\n   \"we do not wish to receive\"\n  ]\n },\n \"mapping\": {\n  \"_comment\": \"Maps your spreadsheet's column headers to the canonical fields. 'explicit' wins over 'aliases'. Header matching ignores case, spaces, underscores and punctuation. Columns that match nothing are preserved untouched in original_row_json.\",\n  \"explicit\": {},\n  \"aliases\": {\n   \"lead_id\": [\n    \"lead id\",\n    \"leadid\",\n    \"id\",\n    \"record id\",\n    \"row id\"\n   ],\n   \"business_name\": [\n    \"business name\",\n    \"business\",\n    \"company\",\n    \"company name\",\n    \"organisation\",\n    \"organization\",\n    \"account\",\n    \"account name\",\n    \"practice name\",\n    \"clinic name\",\n    \"name of business\",\n    \"trading name\"\n   ],\n   \"contact_name\": [\n    \"contact name\",\n    \"contact\",\n    \"full name\",\n    \"contact person\",\n    \"owner name\",\n    \"decision maker\",\n    \"name\"\n   ],\n   \"first_name\": [\n    \"first name\",\n    \"firstname\",\n    \"given name\",\n    \"forename\"\n   ],\n   \"last_name\": [\n    \"last name\",\n    \"lastname\",\n    \"surname\",\n    \"family name\"\n   ],\n   \"email\": [\n    \"email\",\n    \"email address\",\n    \"e-mail\",\n    \"e mail\",\n    \"contact email\",\n    \"work email\",\n    \"business email\",\n    \"primary email\"\n   ],\n   \"website\": [\n    \"website\",\n    \"website url\",\n    \"url\",\n    \"web\",\n    \"site\",\n    \"domain\",\n    \"company website\",\n    \"homepage\",\n    \"web address\"\n   ],\n   \"country\": [\n    \"country\",\n    \"country code\",\n    \"nation\",\n    \"location country\"\n   ],\n   \"industry\": [\n    \"industry\",\n    \"category\",\n    \"niche\",\n    \"sector\",\n    \"vertical\",\n    \"business type\",\n    \"business category\",\n    \"type\"\n   ],\n   \"source\": [\n    \"source\",\n    \"lead source\",\n    \"list source\",\n    \"origin\"\n   ],\n   \"notes\": [\n    \"notes\",\n    \"note\",\n    \"comments\",\n    \"existing notes\",\n    \"remarks\"\n   ],\n   \"outreach_status\": [\n    \"outreach status\",\n    \"status\",\n    \"lead status\"\n   ],\n   \"phone\": [\n    \"phone\",\n    \"phone number\",\n    \"telephone\",\n    \"tel\",\n    \"mobile\"\n   ],\n   \"city\": [\n    \"city\",\n    \"town\",\n    \"suburb\",\n    \"locality\"\n   ],\n   \"state\": [\n    \"state\",\n    \"region\",\n    \"province\",\n    \"county\"\n   ],\n   \"legal_basis_confirmed\": [\n    \"legal basis confirmed\",\n    \"consent\",\n    \"consent confirmed\",\n    \"lawful basis\"\n   ]\n  },\n  \"required\": [\n   \"business_name\",\n   \"email\",\n   \"website\"\n  ],\n  \"source_statuses_to_skip\": [\n   \"contacted\",\n   \"sent\",\n   \"emailed\",\n   \"do not contact\",\n   \"dnc\",\n   \"unsubscribed\",\n   \"opted out\",\n   \"customer\",\n   \"client\",\n   \"bounced\",\n   \"replied\"\n  ]\n }\n} }];\n"
+      },
+      "id": "fhq-0015-config",
+      "name": "Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "sheet",
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('Config').first().json.settings.spreadsheet_id }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('Config').first().json.settings.sheets.settings }}",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "fhq-0016-read-settings",
+      "name": "Read Settings",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        480,
+        0
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "flowhqSheetsCred",
+          "name": "FlowHQ Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "sheet",
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('Config').first().json.settings.spreadsheet_id }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('Config').first().json.settings.sheets.leads }}",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "fhq-0017-read-leads",
+      "name": "Read Leads",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        720,
+        0
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "flowhqSheetsCred",
+          "name": "FlowHQ Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "sheet",
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('Config').first().json.settings.spreadsheet_id }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('Config').first().json.settings.sheets.research_cache }}",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "fhq-0018-read-research-cache",
+      "name": "Read Research Cache",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        960,
+        0
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "flowhqSheetsCred",
+          "name": "FlowHQ Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== FlowHQ library bundle (generated from lib/*.js by scripts/build-workflows.js; edit lib/ and rebuild) =====\nconst __defs = {};\n__defs[\"util\"] = function (module, exports, require) {\n'use strict';\n// Shared helpers. Pure JavaScript only: these files are bundled into n8n Code\n// nodes, which run in a sandboxed task runner without Node built-in modules.\n\nfunction str(v) {\n  if (v === null || v === undefined) return '';\n  return String(v);\n}\n\nfunction clean(v) {\n  return str(v).replace(/\\s+/g, ' ').trim();\n}\n\nfunction truthy(v) {\n  if (typeof v === 'boolean') return v;\n  const s = clean(v).toLowerCase();\n  return ['true', 'yes', 'y', '1', 'on', 'enabled', 'approved'].includes(s);\n}\n\nfunction toInt(v, fallback) {\n  const n = parseInt(str(v).trim(), 10);\n  return Number.isFinite(n) ? n : fallback;\n}\n\n// FNV-1a 32-bit, used for stable, non-secret identifiers.\nfunction fnv1a(input, seed) {\n  let h = seed === undefined ? 0x811c9dc5 : seed >>> 0;\n  const s = str(input);\n  for (let i = 0; i < s.length; i++) {\n    h ^= s.charCodeAt(i);\n    h = Math.imul(h, 0x01000193) >>> 0;\n  }\n  return h >>> 0;\n}\n\nfunction stableHash(input) {\n  const a = fnv1a(input).toString(36).padStart(7, '0');\n  const b = fnv1a(input, 0x9747b28c).toString(36).padStart(7, '0');\n  return (a + b).toUpperCase();\n}\n\nfunction randomToken(length) {\n  const len = length || 32;\n  const alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789';\n  let out = '';\n  const c = typeof crypto !== 'undefined' && crypto && typeof crypto.getRandomValues === 'function' ? crypto : null;\n  if (c) {\n    const bytes = new Uint8Array(len);\n    c.getRandomValues(bytes);\n    for (let i = 0; i < len; i++) out += alphabet[bytes[i] % alphabet.length];\n    return out;\n  }\n  for (let i = 0; i < len; i++) out += alphabet[Math.floor(Math.random() * alphabet.length)];\n  return out;\n}\n\nconst NAMED_ENTITIES = {\n  amp: '&', lt: '<', gt: '>', quot: '\"', apos: \"'\", nbsp: ' ', ndash: '-', mdash: '-',\n  rsquo: \"'\", lsquo: \"'\", rdquo: '\"', ldquo: '\"', hellip: '...', copy: '(c)', reg: '(R)',\n  trade: '(TM)', middot: '-', bull: '-', laquo: '\"', raquo: '\"', eacute: 'e', egrave: 'e',\n  aacute: 'a', agrave: 'a', oacute: 'o', uacute: 'u', iacute: 'i', ntilde: 'n', ccedil: 'c',\n  times: 'x', pound: '£', euro: '€', dollar: '$', cent: 'c', deg: ' degrees', frac12: '1/2',\n};\n\nfunction decodeEntities(s) {\n  return str(s).replace(/&(#x[0-9a-f]+|#\\d+|[a-z][a-z0-9]*);/gi, (m, code) => {\n    if (code[0] === '#') {\n      const n = code[1] === 'x' || code[1] === 'X' ? parseInt(code.slice(2), 16) : parseInt(code.slice(1), 10);\n      if (!Number.isFinite(n) || n <= 0 || n > 0x10ffff) return ' ';\n      try { return String.fromCodePoint(n); } catch (e) { return ' '; }\n    }\n    const v = NAMED_ENTITIES[code.toLowerCase()];\n    return v === undefined ? m : v;\n  });\n}\n\nfunction truncate(s, max) {\n  const t = str(s);\n  if (t.length <= max) return t;\n  return t.slice(0, Math.max(0, max - 3)).trimEnd() + '...';\n}\n\nfunction uniq(arr) {\n  const seen = new Set();\n  const out = [];\n  for (const x of arr) {\n    if (!seen.has(x)) { seen.add(x); out.push(x); }\n  }\n  return out;\n}\n\nfunction safeJsonParse(s, fallback) {\n  if (s && typeof s === 'object') return s;\n  const t = str(s).trim();\n  if (!t) return fallback;\n  try { return JSON.parse(t); } catch (e) { return fallback; }\n}\n\n// Google Sheets cells hold at most 50,000 characters.\nfunction toCell(value, max) {\n  const limit = max || 45000;\n  const s = typeof value === 'string' ? value : JSON.stringify(value === undefined ? null : value);\n  return s.length > limit ? s.slice(0, limit) : s;\n}\n\nfunction isoNow(now) {\n  return (now instanceof Date ? now : new Date(now || Date.now())).toISOString();\n}\n\nfunction errorMessage(e) {\n  if (!e) return 'unknown error';\n  if (typeof e === 'string') return e;\n  return clean(e.message || JSON.stringify(e)).slice(0, 500);\n}\n\nmodule.exports = {\n  str, clean, truthy, toInt, fnv1a, stableHash, randomToken, decodeEntities, truncate,\n  uniq, safeJsonParse, toCell, isoNow, errorMessage,\n};\n\n};\n__defs[\"config\"] = function (module, exports, require) {\n'use strict';\n// Effective runtime policy = static config (in the workflow) combined with the\n// \"Settings\" sheet tab. Every combination is the MORE RESTRICTIVE of the two,\n// and a missing or unreadable Settings value fails closed.\nconst { clean, truthy, toInt } = require('./util');\n\nfunction settingsMap(rows) {\n  const map = {};\n  for (const r of rows || []) {\n    const k = clean(r.key || r.Key || r.setting).toUpperCase();\n    if (k) map[k] = r.value !== undefined ? r.value : r.Value;\n  }\n  return map;\n}\n\nfunction listOf(v) {\n  if (Array.isArray(v)) return v.map((x) => clean(x).toLowerCase()).filter(Boolean);\n  return String(v || '').split(/[\\s,;]+/).map((x) => x.trim().toLowerCase()).filter(Boolean);\n}\n\nfunction minDefined(a, b) {\n  const xs = [a, b].filter((x) => Number.isFinite(x));\n  return xs.length ? Math.min(...xs) : 0;\n}\n\nfunction effectivePolicy(settings, settingsRows) {\n  const s = settings.sending || {};\n  const sheet = settingsMap(settingsRows);\n  const has = (k) => sheet[k] !== undefined && clean(sheet[k]) !== '';\n  const killSwitch = has('KILL_SWITCH') ? truthy(sheet.KILL_SWITCH) : false;\n  const sheetSending = has('SENDING_ENABLED') ? truthy(sheet.SENDING_ENABLED) : false;\n  const sheetTest = has('TEST_MODE') ? truthy(sheet.TEST_MODE) : true;\n  const sendingEnabled = !!s.SENDING_ENABLED && sheetSending && !killSwitch;\n  const testMode = s.TEST_MODE !== false || sheetTest;\n  const approval = s.live_approval || {};\n  const liveApproved = !!(clean(approval.approved_by) && clean(approval.approved_at));\n  const reasons = [];\n  if (killSwitch) reasons.push(`KILL_SWITCH is on${has('KILL_SWITCH_REASON') ? ': ' + clean(sheet.KILL_SWITCH_REASON) : ''}`);\n  if (!s.SENDING_ENABLED) reasons.push('SENDING_ENABLED=false in workflow config');\n  if (!sheetSending) reasons.push('SENDING_ENABLED is not TRUE in the Settings sheet');\n  if (!testMode && !liveApproved) reasons.push('live sending requested but sending.live_approval is not filled in');\n  return {\n    sending_enabled: sendingEnabled && (testMode || liveApproved),\n    test_mode: testMode,\n    live: sendingEnabled && !testMode && liveApproved,\n    kill_switch: killSwitch,\n    require_approval: s.REQUIRE_APPROVAL !== false || (has('REQUIRE_APPROVAL') && truthy(sheet.REQUIRE_APPROVAL)),\n    max_per_run: minDefined(toInt(s.max_sends_per_run, NaN), has('MAX_SENDS_PER_RUN') ? toInt(sheet.MAX_SENDS_PER_RUN, NaN) : NaN),\n    max_per_day: minDefined(toInt(s.max_sends_per_day, NaN), has('MAX_SENDS_PER_DAY') ? toInt(sheet.MAX_SENDS_PER_DAY, NaN) : NaN),\n    interval_seconds: Math.max(toInt(s.send_interval_seconds, 60), has('SEND_INTERVAL_SECONDS') ? toInt(sheet.SEND_INTERVAL_SECONDS, 0) : 0),\n    jitter_seconds: Math.max(0, toInt(s.send_jitter_seconds, 0)),\n    test_allowlist: Array.from(new Set(listOf(s.test_allowlist).concat(has('TEST_ALLOWLIST') ? listOf(sheet.TEST_ALLOWLIST) : []))),\n    test_redirect_to: clean(has('TEST_REDIRECT_TO') ? sheet.TEST_REDIRECT_TO : s.test_redirect_to).toLowerCase(),\n    max_retries: toInt(s.max_retries, 3),\n    retry_backoff_minutes: toInt(s.retry_backoff_minutes, 30),\n    domain_cooldown_days: toInt(s.domain_cooldown_days, 180),\n    blocked_reasons: reasons,\n    research_batch_size: minDefined(toInt((settings.research || {}).batch_size, NaN), has('RESEARCH_BATCH_SIZE') ? toInt(sheet.RESEARCH_BATCH_SIZE, NaN) : NaN) || 10,\n    generation_batch_size: minDefined(toInt((settings.generation || {}).batch_size, NaN), has('GENERATION_BATCH_SIZE') ? toInt(sheet.GENERATION_BATCH_SIZE, NaN) : NaN) || 10,\n  };\n}\n\n// Problems with static config that make sending impossible.\nfunction configProblems(settings) {\n  const p = [];\n  const sender = settings.sender || {};\n  if (!clean(settings.spreadsheet_id) || /REPLACE_WITH/.test(settings.spreadsheet_id)) p.push('spreadsheet_id not set');\n  if (!clean(sender.name) || /REPLACE_WITH/.test(sender.name)) p.push('sender.name not set');\n  if (!clean(sender.email) || /REPLACE_WITH/.test(sender.email)) p.push('sender.email not set');\n  if (/REPLACE_WITH/.test(sender.postal_address || '')) p.push('sender.postal_address not set (required for US recipients)');\n  return p;\n}\n\nmodule.exports = { settingsMap, effectivePolicy, configProblems, listOf };\n\n};\n__defs[\"status\"] = function (module, exports, require) {\n'use strict';\n// Lead lifecycle. A lead moves forward only; each workflow selects leads by\n// status, so re-running a workflow never repeats completed work.\n\nconst STATUS = {\n  // 01 Import & Validate\n  VALIDATED: 'VALIDATED',\n  INVALID: 'INVALID',\n  DUPLICATE: 'DUPLICATE',\n  SUPPRESSED: 'SUPPRESSED',\n  COUNTRY_NOT_ENABLED: 'COUNTRY_NOT_ENABLED',\n  SKIPPED_SOURCE_STATUS: 'SKIPPED_SOURCE_STATUS',\n  // 02 Research\n  RESEARCHED: 'RESEARCHED',\n  MANUAL_REVIEW: 'MANUAL_REVIEW',\n  // 03 Generate\n  READY_FOR_APPROVAL: 'READY_FOR_APPROVAL',\n  NO_RECOMMENDATION: 'NO_RECOMMENDATION',\n  // 04 Send\n  SENDING: 'SENDING',\n  SENT: 'SENT',\n  TEST_SENT: 'TEST_SENT',\n  RETRY_PENDING: 'RETRY_PENDING',\n  FAILED: 'FAILED',\n  SEND_UNKNOWN: 'SEND_UNKNOWN',\n  // 05 Inbox / 06 Unsubscribe\n  REPLIED: 'REPLIED',\n  UNSUBSCRIBED: 'UNSUBSCRIBED',\n  BOUNCED: 'BOUNCED',\n};\n\nconst APPROVAL = { PENDING: 'PENDING', APPROVED: 'APPROVED', REJECTED: 'REJECTED' };\n\nconst VALIDATION = { PASSED: 'PASSED', FAILED: 'FAILED' };\n\n// Statuses after which a lead must never be contacted again automatically.\nconst TERMINAL_NO_CONTACT = new Set([\n  STATUS.INVALID, STATUS.DUPLICATE, STATUS.SUPPRESSED, STATUS.SENT, STATUS.SEND_UNKNOWN,\n  STATUS.FAILED, STATUS.REPLIED, STATUS.UNSUBSCRIBED, STATUS.BOUNCED, STATUS.SENDING,\n]);\n\nmodule.exports = { STATUS, APPROVAL, VALIDATION, TERMINAL_NO_CONTACT };\n\n};\nconst __cache = {};\nfunction __require(n) { n = n.replace(/^\\.\\//, '').replace(/\\.js$/, ''); if (__cache[n]) return __cache[n].exports; const m = { exports: {} }; __cache[n] = m; __defs[n](m, m.exports, __require); return m.exports; }\nconst lib = { config: __require(\"config\"), status: __require(\"status\") };\n// ===== end of bundle =====\n\nconst CFG = $('Config').first().json;\nconst S = CFG.settings;\nconst rowsOf = (name) => { try { return $(name).all().map((i) => i.json).filter((r) => r && Object.keys(r).length && !r.error); } catch (e) { return []; } };\nconst policy = lib.config.effectivePolicy(S, rowsOf('Read Settings'));\nconst cache = {};\nfor (const r of rowsOf('Read Research Cache')) if (r.domain) cache[String(r.domain).toLowerCase()] = r;\nconst ST = lib.status.STATUS;\nconst reprocess = (l) => String(l.reprocess).toUpperCase() === 'TRUE';\nconst leads = rowsOf('Read Leads').filter((l) => l.outreach_status === ST.VALIDATED || (reprocess(l) && [ST.RESEARCHED, ST.MANUAL_REVIEW].includes(l.outreach_status)));\nreturn leads.slice(0, policy.research_batch_size).map((lead) => ({ json: { lead, cache_row: cache[String(lead.domain).toLowerCase()] || null } }));\n"
+      },
+      "id": "fhq-0019-select-leads-to-research",
+      "name": "Select leads to research",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "fhq-001a-one-site-at-a-time",
+      "name": "One site at a time",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== FlowHQ library bundle (generated from lib/*.js by scripts/build-workflows.js; edit lib/ and rebuild) =====\nconst __defs = {};\n__defs[\"util\"] = function (module, exports, require) {\n'use strict';\n// Shared helpers. Pure JavaScript only: these files are bundled into n8n Code\n// nodes, which run in a sandboxed task runner without Node built-in modules.\n\nfunction str(v) {\n  if (v === null || v === undefined) return '';\n  return String(v);\n}\n\nfunction clean(v) {\n  return str(v).replace(/\\s+/g, ' ').trim();\n}\n\nfunction truthy(v) {\n  if (typeof v === 'boolean') return v;\n  const s = clean(v).toLowerCase();\n  return ['true', 'yes', 'y', '1', 'on', 'enabled', 'approved'].includes(s);\n}\n\nfunction toInt(v, fallback) {\n  const n = parseInt(str(v).trim(), 10);\n  return Number.isFinite(n) ? n : fallback;\n}\n\n// FNV-1a 32-bit, used for stable, non-secret identifiers.\nfunction fnv1a(input, seed) {\n  let h = seed === undefined ? 0x811c9dc5 : seed >>> 0;\n  const s = str(input);\n  for (let i = 0; i < s.length; i++) {\n    h ^= s.charCodeAt(i);\n    h = Math.imul(h, 0x01000193) >>> 0;\n  }\n  return h >>> 0;\n}\n\nfunction stableHash(input) {\n  const a = fnv1a(input).toString(36).padStart(7, '0');\n  const b = fnv1a(input, 0x9747b28c).toString(36).padStart(7, '0');\n  return (a + b).toUpperCase();\n}\n\nfunction randomToken(length) {\n  const len = length || 32;\n  const alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789';\n  let out = '';\n  const c = typeof crypto !== 'undefined' && crypto && typeof crypto.getRandomValues === 'function' ? crypto : null;\n  if (c) {\n    const bytes = new Uint8Array(len);\n    c.getRandomValues(bytes);\n    for (let i = 0; i < len; i++) out += alphabet[bytes[i] % alphabet.length];\n    return out;\n  }\n  for (let i = 0; i < len; i++) out += alphabet[Math.floor(Math.random() * alphabet.length)];\n  return out;\n}\n\nconst NAMED_ENTITIES = {\n  amp: '&', lt: '<', gt: '>', quot: '\"', apos: \"'\", nbsp: ' ', ndash: '-', mdash: '-',\n  rsquo: \"'\", lsquo: \"'\", rdquo: '\"', ldquo: '\"', hellip: '...', copy: '(c)', reg: '(R)',\n  trade: '(TM)', middot: '-', bull: '-', laquo: '\"', raquo: '\"', eacute: 'e', egrave: 'e',\n  aacute: 'a', agrave: 'a', oacute: 'o', uacute: 'u', iacute: 'i', ntilde: 'n', ccedil: 'c',\n  times: 'x', pound: '£', euro: '€', dollar: '$', cent: 'c', deg: ' degrees', frac12: '1/2',\n};\n\nfunction decodeEntities(s) {\n  return str(s).replace(/&(#x[0-9a-f]+|#\\d+|[a-z][a-z0-9]*);/gi, (m, code) => {\n    if (code[0] === '#') {\n      const n = code[1] === 'x' || code[1] === 'X' ? parseInt(code.slice(2), 16) : parseInt(code.slice(1), 10);\n      if (!Number.isFinite(n) || n <= 0 || n > 0x10ffff) return ' ';\n      try { return String.fromCodePoint(n); } catch (e) { return ' '; }\n    }\n    const v = NAMED_ENTITIES[code.toLowerCase()];\n    return v === undefined ? m : v;\n  });\n}\n\nfunction truncate(s, max) {\n  const t = str(s);\n  if (t.length <= max) return t;\n  return t.slice(0, Math.max(0, max - 3)).trimEnd() + '...';\n}\n\nfunction uniq(arr) {\n  const seen = new Set();\n  const out = [];\n  for (const x of arr) {\n    if (!seen.has(x)) { seen.add(x); out.push(x); }\n  }\n  return out;\n}\n\nfunction safeJsonParse(s, fallback) {\n  if (s && typeof s === 'object') return s;\n  const t = str(s).trim();\n  if (!t) return fallback;\n  try { return JSON.parse(t); } catch (e) { return fallback; }\n}\n\n// Google Sheets cells hold at most 50,000 characters.\nfunction toCell(value, max) {\n  const limit = max || 45000;\n  const s = typeof value === 'string' ? value : JSON.stringify(value === undefined ? null : value);\n  return s.length > limit ? s.slice(0, limit) : s;\n}\n\nfunction isoNow(now) {\n  return (now instanceof Date ? now : new Date(now || Date.now())).toISOString();\n}\n\nfunction errorMessage(e) {\n  if (!e) return 'unknown error';\n  if (typeof e === 'string') return e;\n  return clean(e.message || JSON.stringify(e)).slice(0, 500);\n}\n\nmodule.exports = {\n  str, clean, truthy, toInt, fnv1a, stableHash, randomToken, decodeEntities, truncate,\n  uniq, safeJsonParse, toCell, isoNow, errorMessage,\n};\n\n};\n__defs[\"url\"] = function (module, exports, require) {\n'use strict';\nconst { clean } = require('./util');\n\nconst URL_RE = /^(https?):\\/\\/([^/?#:@\\s]+)(?::(\\d{1,5}))?([^?#\\s]*)(\\?[^#\\s]*)?(#\\S*)?$/i;\n\n// Reserved by RFC 2606 / RFC 6761: never real businesses.\nconst RESERVED_TLDS = ['example', 'test', 'invalid', 'localhost', 'local'];\n\nconst SOCIAL_HOSTS = [\n  'facebook.com', 'fb.com', 'instagram.com', 'linkedin.com', 'twitter.com', 'x.com', 'tiktok.com',\n  'youtube.com', 'pinterest.com', 'yelp.com', 'google.com', 'goo.gl', 'maps.app.goo.gl',\n  'yellowpages.com', 'yell.com', 'truelocal.com.au', 'linktr.ee', 'wa.me', 'bit.ly',\n];\n\nfunction parseUrl(input) {\n  const m = URL_RE.exec(String(input || '').trim());\n  if (!m) return null;\n  const host = m[2].toLowerCase().replace(/\\.$/, '');\n  return {\n    scheme: m[1].toLowerCase(),\n    host,\n    port: m[3] || '',\n    path: m[4] || '/',\n    query: m[5] || '',\n    hash: m[6] || '',\n  };\n}\n\nfunction formatUrl(u) {\n  const port = u.port && !((u.scheme === 'https' && u.port === '443') || (u.scheme === 'http' && u.port === '80')) ? ':' + u.port : '';\n  return `${u.scheme}://${u.host}${port}${u.path || '/'}${u.query || ''}`;\n}\n\nfunction registrableDomain(host) {\n  return String(host || '').toLowerCase().replace(/^www\\d*\\./, '');\n}\n\nfunction isIp(host) {\n  return /^\\d{1,3}(\\.\\d{1,3}){3}$/.test(host) || host.includes(':');\n}\n\nfunction tldOf(host) {\n  const parts = String(host).split('.');\n  return parts[parts.length - 1];\n}\n\nfunction isReservedHost(host) {\n  return RESERVED_TLDS.includes(tldOf(host)) || host === 'localhost';\n}\n\nfunction isSocialHost(host) {\n  const d = registrableDomain(host);\n  return SOCIAL_HOSTS.some((s) => d === s || d.endsWith('.' + s));\n}\n\nfunction stripTracking(query) {\n  if (!query) return '';\n  const kept = query.slice(1).split('&').filter((kv) => kv && !/^(utm_[a-z]+|gclid|fbclid|msclkid|mc_[a-z]+|ref)=/i.test(kv));\n  return kept.length ? '?' + kept.join('&') : '';\n}\n\n// Returns { ok, url, domain, reason }. Never throws.\nfunction normalizeWebsite(raw, opts) {\n  const options = opts || {};\n  let s = clean(raw);\n  if (!s) return { ok: false, reason: 'missing_website' };\n  s = s.replace(/^[<(\"']+|[>)\"',;]+$/g, '');\n  if (/^mailto:/i.test(s)) return { ok: false, reason: 'website_is_email' };\n  if (/^[a-z][a-z0-9+.-]*:\\/\\//i.test(s) && !/^https?:\\/\\//i.test(s)) return { ok: false, reason: 'unsupported_scheme' };\n  if (!/^https?:\\/\\//i.test(s)) s = 'https://' + s.replace(/^\\/\\//, '');\n  const u = parseUrl(s);\n  if (!u) return { ok: false, reason: 'unparseable_url' };\n  if (!u.host.includes('.') && u.host !== 'localhost') return { ok: false, reason: 'invalid_host' };\n  if (!/^[a-z0-9.-]+$/.test(u.host) || /\\.\\./.test(u.host)) return { ok: false, reason: 'invalid_host' };\n  if (isIp(u.host)) return { ok: false, reason: 'ip_address_not_allowed' };\n  if (isReservedHost(u.host) && !options.allowSynthetic) return { ok: false, reason: 'reserved_test_domain' };\n  if (isSocialHost(u.host)) return { ok: false, reason: 'social_or_directory_profile_not_website' };\n  u.query = stripTracking(u.query);\n  u.hash = '';\n  // Research always starts from the site's root, whatever page was listed.\n  const root = { scheme: u.scheme, host: u.host, port: u.port, path: '/', query: '' };\n  return { ok: true, url: formatUrl(root), listed_url: formatUrl(u), domain: registrableDomain(u.host) };\n}\n\nfunction normalizePath(path) {\n  const segs = [];\n  for (const seg of path.split('/')) {\n    if (seg === '..') segs.pop();\n    else if (seg !== '.' && seg !== '') segs.push(seg);\n  }\n  return '/' + segs.join('/') + (path.endsWith('/') && segs.length ? '/' : '');\n}\n\n// Resolve href against base. Returns absolute http(s) URL string or null.\nfunction resolveUrl(base, href) {\n  const h = String(href || '').trim();\n  if (!h || /^(javascript|mailto|tel|sms|data|ftp|whatsapp):/i.test(h) || h.startsWith('#')) return null;\n  const b = parseUrl(base);\n  if (!b) return null;\n  let out;\n  if (/^https?:\\/\\//i.test(h)) {\n    out = parseUrl(h);\n  } else if (h.startsWith('//')) {\n    out = parseUrl(b.scheme + ':' + h);\n  } else if (h.startsWith('/')) {\n    out = parseUrl(`${b.scheme}://${b.host}${b.port ? ':' + b.port : ''}${h}`);\n  } else if (h.startsWith('?')) {\n    out = parseUrl(`${b.scheme}://${b.host}${b.port ? ':' + b.port : ''}${b.path}${h}`);\n  } else {\n    const dir = b.path.endsWith('/') ? b.path : b.path.slice(0, b.path.lastIndexOf('/') + 1);\n    out = parseUrl(`${b.scheme}://${b.host}${b.port ? ':' + b.port : ''}${dir}${h}`);\n  }\n  if (!out) return null;\n  out.path = normalizePath(out.path || '/');\n  out.hash = '';\n  return formatUrl(out);\n}\n\nfunction sameSite(a, b) {\n  const pa = parseUrl(a);\n  const pb = parseUrl(b);\n  return !!(pa && pb && registrableDomain(pa.host) === registrableDomain(pb.host));\n}\n\n// In test runs, synthetic *.example sites are served by scripts/fixture-server.js.\nfunction fetchUrlFor(url, fixtureBaseUrl) {\n  const u = parseUrl(url);\n  if (!u) return url;\n  if (fixtureBaseUrl && isReservedHost(u.host)) {\n    return fixtureBaseUrl.replace(/\\/$/, '') + '/' + u.host + u.path + (u.query || '');\n  }\n  return url;\n}\n\nmodule.exports = {\n  parseUrl, formatUrl, normalizeWebsite, resolveUrl, sameSite, registrableDomain, isReservedHost,\n  isSocialHost, fetchUrlFor, normalizePath,\n};\n\n};\n__defs[\"robots\"] = function (module, exports, require) {\n'use strict';\n// Minimal RFC 9309 robots.txt parser: groups by user-agent, longest-match\n// Allow/Disallow with * and $ wildcards.\n\nfunction parseRobots(text) {\n  const groups = [];\n  let current = null;\n  let lastWasAgent = false;\n  for (const rawLine of String(text || '').split(/\\r?\\n/)) {\n    const line = rawLine.replace(/#.*$/, '').trim();\n    if (!line) continue;\n    const idx = line.indexOf(':');\n    if (idx < 0) continue;\n    const key = line.slice(0, idx).trim().toLowerCase();\n    const value = line.slice(idx + 1).trim();\n    if (key === 'user-agent') {\n      if (!current || !lastWasAgent) { current = { agents: [], rules: [] }; groups.push(current); }\n      current.agents.push(value.toLowerCase());\n      lastWasAgent = true;\n    } else if (key === 'allow' || key === 'disallow') {\n      if (current) current.rules.push({ allow: key === 'allow', path: value });\n      lastWasAgent = false;\n    } else {\n      lastWasAgent = false;\n    }\n  }\n  return groups;\n}\n\nfunction ruleMatches(rulePath, path) {\n  if (rulePath === '') return false;\n  let pattern = '';\n  const anchored = rulePath.endsWith('$');\n  const body = anchored ? rulePath.slice(0, -1) : rulePath;\n  for (const ch of body) pattern += ch === '*' ? '.*' : ch.replace(/[.+?^${}()|[\\]\\\\]/g, '\\\\$&');\n  return new RegExp('^' + pattern + (anchored ? '$' : '')).test(path);\n}\n\nfunction agentToken(userAgent) {\n  return String(userAgent || '').split('/')[0].trim().toLowerCase();\n}\n\nfunction isAllowed(groups, userAgent, path) {\n  const token = agentToken(userAgent);\n  let matched = groups.filter((g) => g.agents.some((a) => a !== '*' && token.includes(a)));\n  if (!matched.length) matched = groups.filter((g) => g.agents.includes('*'));\n  if (!matched.length) return true;\n  const rules = [].concat(...matched.map((g) => g.rules));\n  let best = null;\n  for (const r of rules) {\n    if (!ruleMatches(r.path, path)) continue;\n    if (!best || r.path.length > best.path.length || (r.path.length === best.path.length && r.allow)) best = r;\n  }\n  return best ? best.allow : true;\n}\n\n// Interpret an HTTP response for robots.txt per RFC 9309: 4xx => no rules,\n// 5xx/unreachable => assume full disallow.\nfunction robotsFromResponse(statusCode, body) {\n  const code = Number(statusCode) || 0;\n  if (code >= 200 && code < 300) return { state: 'parsed', groups: parseRobots(body) };\n  if (code >= 400 && code < 500) return { state: 'absent', groups: [] };\n  return { state: 'unreachable', groups: [{ agents: ['*'], rules: [{ allow: false, path: '/' }] }] };\n}\n\nmodule.exports = { parseRobots, isAllowed, robotsFromResponse };\n\n};\n__defs[\"html\"] = function (module, exports, require) {\n'use strict';\n// Lightweight HTML extraction with regular expressions. It is deliberately\n// conservative: it records what is present in the HTML that was served, and\n// never tries to execute JavaScript.\nconst { decodeEntities, clean, uniq, truncate } = require('./util');\nconst { resolveUrl } = require('./url');\n\nconst BOOKING_WIDGETS = {\n  calendly: /calendly\\.com/i, acuity: /acuityscheduling\\.com|as\\.me\\//i, square_appointments: /squareup\\.com\\/appointments|square\\.site\\/book|book\\.squareup/i,\n  setmore: /setmore\\.com/i, simplybook: /simplybook\\.(me|it)/i, fresha: /fresha\\.com/i, mindbody: /mindbodyonline\\.com|clients\\.mindbodyonline/i,\n  booksy: /booksy\\.com/i, vagaro: /vagaro\\.com/i, jane_app: /\\.janeapp\\.com|jane\\.app/i, cliniko: /cliniko\\.com/i, hotdoc: /hotdoc\\.com\\.au/i,\n  healthengine: /healthengine\\.com\\.au/i, nookal: /nookal\\.com/i, timely: /gettimely\\.com|bookings\\.gettimely/i, zocdoc: /zocdoc\\.com/i,\n  opentable: /opentable\\.(com|co\\.uk|com\\.au)/i, resy: /resy\\.com/i, tock: /exploretock\\.com/i, housecall_pro: /housecallpro\\.com/i,\n  servicetitan: /servicetitan\\.com/i, jobber: /getjobber\\.com/i, servicem8: /servicem8\\.com/i, google_appointments: /calendar\\.app\\.google|calendar\\.google\\.com\\/calendar\\/appointments/i,\n  youcanbookme: /youcanbook\\.me/i, bookwhen: /bookwhen\\.com/i, appointy: /appointy\\.com/i, halaxy: /halaxy\\.com/i, phorest: /phorest\\.com/i,\n  dentally: /dentally\\.co/i, nexhealth: /nexhealth\\.com/i, localmed: /localmed\\.com/i, zenoti: /zenoti\\.com/i, boulevard: /joinblvd\\.com|blvd\\.co/i,\n  glossgenius: /glossgenius\\.com/i, healthcode: /healthcode\\.co\\.uk/i, doctolib: /doctolib\\./i, practice_better: /practicebetter\\.io/i,\n};\n\nconst CHAT_WIDGETS = {\n  intercom: /widget\\.intercom\\.io|intercomcdn/i, drift: /js\\.driftt\\.com|drift\\.com\\/include/i, tidio: /code\\.tidio\\.co/i,\n  tawk: /embed\\.tawk\\.to/i, livechat: /cdn\\.livechatinc\\.com/i, crisp: /client\\.crisp\\.chat/i, zendesk: /static\\.zdassets\\.com|zopim/i,\n  hubspot_chat: /js\\.usemessages\\.com|hs-scripts\\.com/i, olark: /static\\.olark\\.com/i, freshchat: /wchat\\.freshchat\\.com|freshworks\\.com\\/live-chat/i,\n  smartsupp: /smartsuppchat\\.com/i, chatra: /call\\.chatra\\.io/i, podium: /connect\\.podium\\.com|podium\\.com\\/widget/i,\n  birdeye: /birdeye\\.com\\/embed/i, facebook_messenger: /customerchat|connect\\.facebook\\.net\\/[^\"']*\\/sdk\\/xfbml\\.customerchat/i,\n  whatsapp: /wa\\.me\\/|api\\.whatsapp\\.com\\/send/i, chatbase: /chatbase\\.co/i, voiceflow: /voiceflow\\.com/i,\n};\n\nconst FORM_PROVIDERS = {\n  hubspot_form: /js\\.hsforms\\.net|hsforms\\.com/i, gravity_forms: /gform_wrapper|gravityforms/i, wpforms: /wpforms-form|wpforms/i,\n  contact_form_7: /wpcf7/i, typeform: /typeform\\.com/i, jotform: /jotform\\.com/i, google_forms: /docs\\.google\\.com\\/forms/i,\n  wix_form: /wixforms|wix-forms/i, squarespace_form: /sqs-block-form|squarespace-form/i, formstack: /formstack\\.com/i,\n  cognito: /cognitoforms\\.com/i, ninja_forms: /nf-form-cont|ninja-forms/i, elementor_form: /elementor-form/i,\n};\n\nfunction stripNonContent(html) {\n  return String(html || '')\n    .replace(/<!--[\\s\\S]*?-->/g, ' ')\n    .replace(/<(script|style|noscript|svg|template|iframe|canvas)\\b[\\s\\S]*?<\\/\\1\\s*>/gi, ' ');\n}\n\nfunction textOf(fragment) {\n  return clean(decodeEntities(String(fragment || '').replace(/<[^>]+>/g, ' ')));\n}\n\nfunction attr(tagAttrs, name) {\n  const re = new RegExp('\\\\b' + name + '\\\\s*=\\\\s*(?:\"([^\"]*)\"|\\'([^\\']*)\\'|([^\\\\s>]+))', 'i');\n  const m = re.exec(tagAttrs || '');\n  return m ? decodeEntities(m[1] !== undefined ? m[1] : m[2] !== undefined ? m[2] : m[3]) : '';\n}\n\nfunction pageText(html) {\n  const body = stripNonContent(html)\n    .replace(/<head\\b[\\s\\S]*?<\\/head\\s*>/i, ' ')\n    .replace(/<(br|\\/p|\\/div|\\/li|\\/h[1-6]|\\/tr|\\/section|\\/article|\\/header|\\/footer|\\/nav|\\/td|\\/dt|\\/dd)\\b[^>]*>/gi, '\\n')\n    .replace(/<[^>]+>/g, ' ');\n  return decodeEntities(body)\n    .split('\\n')\n    .map((l) => l.replace(/[ \\t\\f\\v\\u00a0]+/g, ' ').trim())\n    .filter(Boolean)\n    .join('\\n');\n}\n\nfunction extractPage(html, url, opts) {\n  const options = opts || {};\n  const raw = String(html || '').slice(0, options.maxChars || 600000);\n  const cleaned = stripNonContent(raw);\n  const titleMatch = /<title\\b[^>]*>([\\s\\S]*?)<\\/title>/i.exec(raw);\n  const metaDesc = /<meta\\b[^>]*name\\s*=\\s*[\"']description[\"'][^>]*>/i.exec(raw);\n\n  const headings = [];\n  const hRe = /<(h[1-4])\\b[^>]*>([\\s\\S]*?)<\\/\\1\\s*>/gi;\n  let m;\n  while ((m = hRe.exec(cleaned)) && headings.length < 80) {\n    const t = textOf(m[2]);\n    if (t) headings.push({ level: m[1].toLowerCase(), text: truncate(t, 160) });\n  }\n\n  const links = [];\n  const telLinks = [];\n  const mailtoLinks = [];\n  const aRe = /<a\\b([^>]*)>([\\s\\S]*?)<\\/a\\s*>/gi;\n  while ((m = aRe.exec(cleaned)) && links.length < 400) {\n    const href = attr(m[1], 'href');\n    const text = truncate(textOf(m[2]) || attr(m[1], 'aria-label') || attr(m[1], 'title'), 120);\n    const cls = attr(m[1], 'class');\n    if (/^tel:/i.test(href)) { telLinks.push({ href: href.slice(4).trim(), text }); continue; }\n    if (/^mailto:/i.test(href)) { mailtoLinks.push(href.slice(7).split('?')[0].trim().toLowerCase()); continue; }\n    const abs = resolveUrl(url, href);\n    if (abs) links.push({ href: abs, text, button: /\\b(btn|button|cta)\\b/i.test(cls) });\n  }\n\n  const buttons = [];\n  const bRe = /<button\\b[^>]*>([\\s\\S]*?)<\\/button\\s*>/gi;\n  while ((m = bRe.exec(cleaned)) && buttons.length < 60) {\n    const t = textOf(m[1]);\n    if (t) buttons.push(truncate(t, 80));\n  }\n\n  const forms = [];\n  const fRe = /<form\\b([^>]*)>([\\s\\S]*?)<\\/form\\s*>/gi;\n  while ((m = fRe.exec(cleaned)) && forms.length < 20) {\n    const inner = m[2];\n    const inputs = [];\n    const iRe = /<(input|textarea|select)\\b([^>]*)>/gi;\n    let im;\n    while ((im = iRe.exec(inner))) {\n      const type = im[1].toLowerCase() === 'input' ? (attr(im[2], 'type') || 'text').toLowerCase() : im[1].toLowerCase();\n      if (['hidden', 'submit', 'button', 'image', 'reset'].includes(type)) continue;\n      inputs.push({ type, name: (attr(im[2], 'name') || attr(im[2], 'id') || attr(im[2], 'placeholder')).toLowerCase() });\n    }\n    const isSearch = /search/i.test(m[1]) || (inputs.length === 1 && (inputs[0].type === 'search' || /^(s|q|search)$/.test(inputs[0].name)));\n    const isNewsletter = inputs.length <= 2 && inputs.some((i) => i.type === 'email') && !inputs.some((i) => i.type === 'textarea') && /newsletter|subscribe|mailchimp|mc-embedded/i.test(m[0]);\n    forms.push({\n      action: attr(m[1], 'action'),\n      field_count: inputs.length,\n      has_email: inputs.some((i) => i.type === 'email' || /email/.test(i.name)),\n      has_message: inputs.some((i) => i.type === 'textarea' || /message|enquiry|inquiry|comment/.test(i.name)),\n      has_file: inputs.some((i) => i.type === 'file'),\n      kind: isSearch ? 'search' : isNewsletter ? 'newsletter' : 'enquiry',\n    });\n  }\n\n  const detect = (table) => Object.keys(table).filter((k) => table[k].test(raw));\n  const text = pageText(raw);\n  const emailsInText = (text.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,24}/gi) || []).map((e) => e.toLowerCase());\n  const scriptCount = (raw.match(/<script\\b/gi) || []).length;\n\n  return {\n    url,\n    title: truncate(textOf(titleMatch ? titleMatch[1] : ''), 160),\n    meta_description: metaDesc ? truncate(attr(metaDesc[0], 'content'), 300) : '',\n    has_viewport: /<meta\\b[^>]*name\\s*=\\s*[\"']viewport[\"']/i.test(raw),\n    headings,\n    links,\n    buttons,\n    forms,\n    tel_links: telLinks,\n    emails: uniq(mailtoLinks.concat(emailsInText)),\n    booking_widgets: detect(BOOKING_WIDGETS),\n    chat_widgets: detect(CHAT_WIDGETS),\n    form_providers: detect(FORM_PROVIDERS),\n    pdf_links: links.filter((l) => /\\.pdf(\\?|$)/i.test(l.href)),\n    text,\n    text_chars: text.length,\n    script_count: scriptCount,\n    html_chars: raw.length,\n  };\n}\n\nmodule.exports = { extractPage, pageText, BOOKING_WIDGETS, CHAT_WIDGETS };\n\n};\n__defs[\"signals\"] = function (module, exports, require) {\n'use strict';\n// Evidence detectors. Each signal is a single, checkable observation tied to\n// a URL and a short quote from the page. \"not_found\" signals are only emitted\n// when coverage is good enough, and must be phrased as \"I couldn't find...\".\nconst { truncate, clean, uniq } = require('./util');\n\nconst CTA_WORDS = /\\b(book|booking|call|contact|quote|estimate|enquir|inquir|get started|schedule|appointment|get in touch|request|order|shop|buy|sign up|consult|talk to|speak to|reserve|apply|join|visit us|find us)\\b/i;\nconst BOOKING_LINK_WORDS = /\\b(book|booking|appointment|schedule|reserve|reservation)s?\\b/i;\nconst CONTACT_LINK_WORDS = /\\b(contact|get in touch|enquire|enquiry|inquire|inquiry|reach us|email us|call us)\\b/i;\n\nconst PHONE_BOOKING_RE = [\n  /\\b(?:please\\s+)?(?:call|phone|ring|contact)\\s+(?:us\\s+)?(?:today\\s+|now\\s+)?(?:on\\s+[\\d\\s()+.-]{6,20}\\s*)?to\\s+(?:book|make (?:an|a|your) (?:appointment|booking)|schedule|arrange (?:an|a|your) (?:appointment|visit))/i,\n  /\\bto\\s+(?:book|make (?:an|a) (?:appointment|booking)|schedule (?:an|a) (?:appointment|visit))[^.\\n]{0,40}?(?:please\\s+)?(?:call|phone|ring|email)\\b/i,\n  /\\b(?:bookings?|appointments?)\\s+(?:are|can be)\\s+(?:made|taken|arranged)\\s+(?:by|via|over the)\\s+(?:phone|telephone|email)/i,\n  /\\b(?:bookings?|appointments?)\\s+by\\s+(?:phone|telephone)\\s+only\\b/i,\n  /\\b(?:email|e-mail)\\s+us\\s+to\\s+(?:book|make (?:an|a) (?:appointment|booking))/i,\n];\n\nconst QUOTE_RE = [\n  /\\b(?:call|phone|ring)\\s+(?:us\\s+)?(?:today\\s+|now\\s+)?(?:on\\s+[\\d\\s()+.-]{6,20}\\s*)?for\\s+(?:a|your)\\s+(?:free\\s+|no[- ]obligation\\s+)?(?:quote|estimate)/i,\n  /\\b(?:email|e-mail|contact)\\s+us\\s+(?:today\\s+)?for\\s+(?:a|your)\\s+(?:free\\s+|no[- ]obligation\\s+)?(?:quote|estimate)/i,\n  /\\bfor\\s+(?:a|your)\\s+(?:free\\s+)?(?:quote|estimate),?\\s+(?:please\\s+)?(?:call|phone|ring|email)\\b/i,\n];\n\nconst HOURS_RE = /\\b(?:mon(?:day)?|tue(?:s(?:day)?)?|wed(?:nesday)?|thu(?:r(?:s(?:day)?)?)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)\\.?\\s*(?:-|–|to|through|thru)\\s*(?:mon(?:day)?|tue(?:s(?:day)?)?|wed(?:nesday)?|thu(?:r(?:s(?:day)?)?)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)\\.?[:,]?\\s*\\d{1,2}(?:[:.]\\d{2})?\\s*(?:am|pm|a\\.m\\.|p\\.m\\.)?\\s*(?:-|–|to)\\s*\\d{1,2}(?:[:.]\\d{2})?\\s*(?:am|pm|a\\.m\\.|p\\.m\\.)?/i;\n\nconst PDF_FORM_WORDS = /\\b(form|intake|registration|new patient|new client|questionnaire|consent|application|medical history|health history|referral)\\b/i;\nconst REVIEWS_RE = /\\b(google reviews?|leave (?:us )?a review|read our reviews|5[- ]star reviews?|customer reviews|testimonials)\\b/i;\n\nfunction snippetAround(text, index, length) {\n  const start = Math.max(0, index - 60);\n  const end = Math.min(text.length, index + (length || 0) + 60);\n  return truncate(clean((start > 0 ? '...' : '') + text.slice(start, end) + (end < text.length ? '...' : '')), 220);\n}\n\nfunction findInPages(pages, regexes) {\n  const list = Array.isArray(regexes) ? regexes : [regexes];\n  for (const p of pages) {\n    for (const re of list) {\n      const m = re.exec(p.text || '');\n      if (m) return { url: p.url, match: clean(m[0]), snippet: snippetAround(p.text, m.index, m[0].length) };\n    }\n  }\n  return null;\n}\n\nfunction channelOf(match) {\n  const phone = /\\b(call|phone|ring|telephone)\\b/i.test(match);\n  const email = /\\be-?mail\\b/i.test(match);\n  return phone && email ? 'phone or email' : email ? 'email' : phone ? 'phone' : 'get in touch';\n}\n\nfunction signal(id, topic, claimType, statement, evidence, confidence, extra) {\n  return Object.assign({\n    id, topic, claim_type: claimType, statement,\n    evidence_url: evidence.url || '', evidence_snippet: truncate(evidence.snippet || '', 240),\n    confidence: Math.round(confidence * 100) / 100,\n  }, extra || {});\n}\n\n/**\n * pages: extracted pages (lib/html.extractPage) each with .category;\n * pages[0] must be the homepage.\n * ctx: { industry_group, coverage: { page_count, has_contact_page, js_suspected } }\n */\nfunction detectSignals(pages, ctx) {\n  const out = [];\n  if (!pages.length) return out;\n  const home = pages[0];\n  const cov = ctx.coverage || {};\n  const canClaimAbsence = !cov.js_suspected && cov.page_count >= 2;\n  const allLinks = [].concat(...pages.map((p) => p.links || []));\n  const bookingWidgets = uniq([].concat(...pages.map((p) => p.booking_widgets || [])));\n  const chatWidgets = uniq([].concat(...pages.map((p) => p.chat_widgets || [])));\n  const formProviders = uniq([].concat(...pages.map((p) => p.form_providers || [])));\n  const enquiryForms = [];\n  for (const p of pages) for (const f of p.forms || []) if (f.kind === 'enquiry' && (f.has_email || f.has_message) && f.field_count >= 2) enquiryForms.push({ page: p, form: f });\n  const contactPage = pages.find((p) => p.category === 'contact');\n\n  // 1. Booking handled by phone/email\n  const phoneBooking = findInPages(pages, PHONE_BOOKING_RE);\n  if (phoneBooking) {\n    out.push(signal('booking_by_phone_or_email', 'booking', 'observed',\n      `The website asks people to ${channelOf(phoneBooking.match)} to book (\"${truncate(phoneBooking.match, 90)}\").`,\n      phoneBooking, bookingWidgets.length ? 0.5 : 0.85));\n  }\n\n  // 2. No online booking found (appointment-based businesses only)\n  const bookingLinks = allLinks.filter((l) => BOOKING_LINK_WORDS.test(l.text) || /\\/(book|booking|appointments?|schedule)(\\/|$|-)/i.test(l.href));\n  const bookingButtons = [].concat(...pages.map((p) => (p.buttons || []).filter((b) => BOOKING_LINK_WORDS.test(b))));\n  if (ctx.industry_group === 'appointment' && canClaimAbsence && !bookingWidgets.length && !bookingLinks.length && !bookingButtons.length && !phoneBooking) {\n    out.push(signal('booking_not_found', 'booking', 'not_found',\n      \"I couldn't find an online booking option on the pages I reviewed.\",\n      { url: home.url, snippet: `Reviewed: ${pages.map((p) => p.url).join(', ')}` },\n      cov.has_contact_page ? 0.7 : 0.6));\n  }\n\n  // 3. Quotes requested by phone/email\n  const quote = findInPages(pages, QUOTE_RE);\n  if (quote) {\n    out.push(signal('quote_by_phone_or_email', 'quote', 'observed',\n      `The website asks people to ${channelOf(quote.match)} for a quote (\"${truncate(quote.match, 90)}\").`,\n      quote, enquiryForms.length || formProviders.length ? 0.55 : 0.8));\n  }\n\n  // 4/5. Enquiry form present / not found\n  if (enquiryForms.length || formProviders.length) {\n    const p = enquiryForms.length ? enquiryForms[0].page : pages.find((x) => (x.form_providers || []).length) || home;\n    out.push(signal('contact_form_present', 'enquiry_form', 'observed',\n      'The website has an enquiry form for people to get in touch.',\n      { url: p.url, snippet: enquiryForms.length ? `Form with ${enquiryForms[0].form.field_count} fields on ${p.url}` : `Form provider: ${formProviders.join(', ')}` },\n      0.65));\n  } else if (canClaimAbsence && contactPage && ((contactPage.tel_links || []).length || (contactPage.emails || []).length)) {\n    out.push(signal('no_contact_form_found', 'enquiry_form', 'not_found',\n      \"I couldn't find an enquiry form; the contact page lists phone and/or email details instead.\",\n      { url: contactPage.url, snippet: truncate(`Contact page lists: ${[].concat((contactPage.tel_links || []).map((t) => t.href), contactPage.emails || []).slice(0, 3).join(', ')}`, 200) },\n      0.7));\n  }\n\n  // 6. Phone as a primary call to action\n  const callCta = (home.tel_links || []).find((t) => /\\b(call|phone|ring)\\b/i.test(t.text)) ||\n    ((home.tel_links || []).length && (home.buttons || []).find((b) => /\\bcall (us|now|today)\\b/i.test(b)) ? { text: (home.buttons || []).find((b) => /\\bcall (us|now|today)\\b/i.test(b)), href: home.tel_links[0].href } : null);\n  if (callCta) {\n    out.push(signal('phone_primary_contact', 'phone', 'observed',\n      `The homepage has a prominent call link (\"${truncate(callCta.text, 60)}\").`,\n      { url: home.url, snippet: `Link \"${truncate(callCta.text, 60)}\" -> tel:${callCta.href}` }, 0.6));\n  }\n\n  // 7. Opening hours\n  const hours = findInPages(pages, HOURS_RE);\n  if (hours) {\n    out.push(signal('opening_hours_listed', 'hours', 'observed',\n      `The website lists set opening hours (\"${truncate(hours.match, 60)}\").`, hours, 0.55));\n  }\n\n  // 8. FAQ with many questions\n  for (const p of pages) {\n    const isFaq = p.category === 'faq' || /faq|frequently asked/i.test(p.title + ' ' + p.headings.map((h) => h.text).join(' '));\n    if (!isFaq) continue;\n    const questions = uniq(p.headings.map((h) => h.text).concat((p.text || '').split('\\n')).filter((t) => /\\?\\s*$/.test(t) && t.length > 12 && t.length < 200));\n    if (questions.length >= 5) {\n      out.push(signal('faq_extensive', 'faq', 'observed',\n        `The website has an FAQ section answering ${questions.length} common questions.`,\n        { url: p.url, snippet: truncate(questions.slice(0, 3).join(' | '), 220) }, 0.75, { question_count: questions.length }));\n      break;\n    }\n  }\n\n  // 9. Existing chat widget (mostly used to avoid recommending another one)\n  if (chatWidgets.length) {\n    out.push(signal('chat_widget_present', 'chat', 'observed',\n      `The website already has a chat tool (${chatWidgets.join(', ')}).`,\n      { url: home.url, snippet: `Detected chat embed: ${chatWidgets.join(', ')}` }, 0.5));\n  }\n\n  // 10. PDF intake/registration forms\n  const pdfForms = [].concat(...pages.map((p) => (p.pdf_links || []).filter((l) => PDF_FORM_WORDS.test(l.text + ' ' + l.href)).map((l) => ({ page: p, link: l }))));\n  if (pdfForms.length) {\n    const f = pdfForms[0];\n    out.push(signal('pdf_intake_forms', 'pdf_forms', 'observed',\n      `Client forms are offered as PDF downloads (\"${truncate(f.link.text || f.link.href, 70)}\").`,\n      { url: f.page.url, snippet: `PDF link \"${truncate(f.link.text, 60)}\" -> ${f.link.href}` }, 0.85));\n  }\n\n  // 11. Contact details not visible on the homepage\n  const homeHasContact = (home.tel_links || []).length || (home.emails || []).length ||\n    (home.links || []).some((l) => CONTACT_LINK_WORDS.test(l.text) || /\\/contact/i.test(l.href)) ||\n    (home.forms || []).some((f) => f.kind === 'enquiry') || (home.form_providers || []).length;\n  if (!cov.js_suspected && home.text_chars >= 400 && !homeHasContact) {\n    out.push(signal('contact_not_on_homepage', 'contact', 'not_found',\n      \"I couldn't spot contact details or a contact link on the homepage.\",\n      { url: home.url, snippet: `Homepage links checked: ${(home.links || []).length}; no tel:, mailto: or contact link found.` }, 0.6));\n  }\n\n  // 12. No clear call to action on the homepage\n  const homeCtas = (home.links || []).filter((l) => CTA_WORDS.test(l.text)).length + (home.buttons || []).filter((b) => CTA_WORDS.test(b)).length + (home.tel_links || []).length;\n  if (!cov.js_suspected && home.text_chars >= 400 && homeCtas === 0) {\n    out.push(signal('no_clear_cta_homepage', 'cta', 'not_found',\n      \"I couldn't spot a clear next step (such as 'Book', 'Call' or 'Get a quote') on the homepage.\",\n      { url: home.url, snippet: `Homepage links/buttons reviewed: ${(home.links || []).length + (home.buttons || []).length}; none used action wording.` }, 0.55));\n  }\n\n  // 13. Many services listed\n  const servicesPage = pages.find((p) => p.category === 'services');\n  if (servicesPage) {\n    const serviceHeadings = servicesPage.headings.filter((h) => h.level === 'h2' || h.level === 'h3').filter((h) => h.text.length < 80 && !/\\?$/.test(h.text));\n    if (serviceHeadings.length >= 6) {\n      out.push(signal('many_services_listed', 'services', 'observed',\n        `The services page lists a wide range of services (${serviceHeadings.length} headings).`,\n        { url: servicesPage.url, snippet: truncate(serviceHeadings.slice(0, 5).map((h) => h.text).join(' | '), 220) }, 0.45));\n    }\n  }\n\n  // 14. Reviews mentioned\n  const reviews = findInPages(pages, REVIEWS_RE);\n  if (reviews) out.push(signal('reviews_mentioned', 'reviews', 'observed', `The website highlights customer reviews (\"${truncate(reviews.match, 50)}\").`, reviews, 0.4));\n\n  // 15. Missing mobile viewport tag (technical, needs human confirmation)\n  if (!home.has_viewport && home.html_chars > 2000) {\n    out.push(signal('no_mobile_viewport', 'mobile', 'observed',\n      \"The homepage's code doesn't include a mobile viewport setting, which usually affects how a page displays on phones.\",\n      { url: home.url, snippet: 'No <meta name=\"viewport\"> tag in the homepage HTML.' }, 0.45, { requires_human_check: true }));\n  }\n\n  return out;\n}\n\nmodule.exports = { detectSignals, findInPages, PHONE_BOOKING_RE, QUOTE_RE, HOURS_RE };\n\n};\n__defs[\"research\"] = function (module, exports, require) {\n'use strict';\nconst { clean, truncate, uniq, toCell, isoNow, safeJsonParse } = require('./util');\nconst { parseUrl, sameSite, fetchUrlFor } = require('./url');\nconst { isAllowed, robotsFromResponse } = require('./robots');\nconst { extractPage } = require('./html');\nconst { detectSignals } = require('./signals');\n\nconst CATEGORIES = [\n  { name: 'contact', re: /\\b(contact|get[- ]in[- ]touch|reach[- ]us|enquir|inquir|find[- ]us|locations?)\\b/i, priority: 1 },\n  { name: 'booking', re: /\\b(book|booking|appointments?|schedule|reserve|reservations?)\\b/i, priority: 2 },\n  { name: 'services', re: /\\b(services?|treatments?|what[- ]we[- ]do|solutions|our[- ]work|specialt(y|ies)|procedures|menu)\\b/i, priority: 3 },\n  { name: 'quote', re: /\\b(quote|estimate|pricing|prices|fees|rates|cost)\\b/i, priority: 4 },\n  { name: 'faq', re: /\\b(faqs?|frequently[- ]asked|questions|help)\\b/i, priority: 5 },\n  { name: 'new_clients', re: /\\b(new[- ]patients?|new[- ]clients?|patient[- ](info|forms)|first[- ]visit|forms)\\b/i, priority: 6 },\n];\nconst SKIP_PATH = /\\.(pdf|jpe?g|png|gif|webp|svg|zip|docx?|xlsx?|pptx?|mp4|mov|mp3|ics|xml|json|css|js)(\\?|$)|\\/(wp-admin|wp-login|login|log-in|signin|sign-in|account|my-account|cart|checkout|basket|portal|admin|feed|tag|author|privacy|terms|cookie|careers|jobs)(\\/|$|\\?)/i;\n\nfunction categorise(link) {\n  const hay = `${link.text} ${(parseUrl(link.href) || {}).path || ''}`.replace(/[-_/]+/g, ' ');\n  for (const c of CATEGORIES) if (c.re.test(hay)) return c;\n  return null;\n}\n\n// Choose up to (maxPages - 1) internal pages, one per category, by priority.\nfunction selectPages(homepage, robotsGroups, settings) {\n  const max = Math.max(1, (settings.research && settings.research.max_pages_per_site) || 4) - 1;\n  const ua = (settings.research && settings.research.user_agent) || 'FlowHQ-ResearchBot';\n  const chosen = {};\n  for (const link of homepage.links || []) {\n    if (!sameSite(link.href, homepage.url)) continue;\n    const u = parseUrl(link.href);\n    if (!u || SKIP_PATH.test(u.path) || u.path === '/' || u.query.length > 60) continue;\n    if (robotsGroups && !isAllowed(robotsGroups, ua, u.path)) continue;\n    const c = categorise(link);\n    if (!c) continue;\n    const prev = chosen[c.name];\n    if (!prev || u.path.length < prev.path_len) chosen[c.name] = { url: link.href, category: c.name, priority: c.priority, path_len: u.path.length };\n  }\n  return Object.values(chosen).sort((a, b) => a.priority - b.priority).slice(0, max).map((c) => ({ url: c.url, category: c.category }));\n}\n\n// Normalise an n8n HTTP Request result (fullResponse + neverError, or an error item).\nfunction interpretResponse(item, maxChars) {\n  const j = item || {};\n  if (j.error) {\n    const msg = clean(typeof j.error === 'string' ? j.error : j.error.message || JSON.stringify(j.error));\n    const timeout = /timeout|timed out|ETIMEDOUT|ESOCKETTIMEDOUT|aborted/i.test(msg);\n    const dns = /ENOTFOUND|EAI_AGAIN|getaddrinfo/i.test(msg);\n    return { ok: false, status: 0, kind: timeout ? 'TIMEOUT' : dns ? 'DNS_FAILURE' : 'NETWORK_ERROR', error: truncate(msg, 300) };\n  }\n  const status = Number(j.statusCode || j.status || 0);\n  const headers = j.headers || {};\n  const ctype = String(headers['content-type'] || headers['Content-Type'] || '');\n  let body = j.body !== undefined ? j.body : j.data;\n  if (body && typeof body === 'object') body = JSON.stringify(body);\n  body = String(body || '');\n  if (status === 401 || status === 403 || status === 429 || status === 503) {\n    return { ok: false, status, kind: status === 429 ? 'RATE_LIMITED' : 'BLOCKED', error: `HTTP ${status}`, body: body.slice(0, 2000) };\n  }\n  if (status < 200 || status >= 300) return { ok: false, status, kind: 'HTTP_ERROR', error: `HTTP ${status}` };\n  if (ctype && !/html|xml|text\\/plain/i.test(ctype)) return { ok: false, status, kind: 'NOT_HTML', error: `content-type ${truncate(ctype, 60)}` };\n  if (/cf-chl-|challenge-platform|captcha|g-recaptcha|hcaptcha|Access Denied|Attention Required/i.test(body.slice(0, 20000)) && body.length < 60000 && !/<form[^>]*contact/i.test(body)) {\n    return { ok: false, status, kind: 'BOT_CHALLENGE', error: 'anti-bot challenge page' };\n  }\n  return { ok: true, status, body: body.slice(0, maxChars || 600000), truncated: body.length > (maxChars || 600000) };\n}\n\n/**\n * Build the per-domain research record from fetched pages.\n * fetched: [{ url, category, response }] where response is an n8n HTTP item; first entry = homepage.\n */\nfunction buildResearch(input) {\n  const { lead, robots, fetched, settings, compliance } = input;\n  const now = isoNow(input.now);\n  const rs = settings.research || {};\n  const pages = [];\n  const errors = [];\n  for (const f of fetched || []) {\n    const r = interpretResponse(f.response, rs.max_html_chars);\n    if (!r.ok) { errors.push({ url: f.url, kind: r.kind, error: r.error }); continue; }\n    const page = extractPage(r.body, f.url, { maxChars: rs.max_html_chars });\n    page.category = f.category || 'home';\n    pages.push(page);\n  }\n  const homeOk = pages.length && pages[0].category === 'home';\n  let accessStatus = 'OK';\n  if (robots && robots.blocked) accessStatus = 'BLOCKED_BY_ROBOTS_TXT';\n  else if (!homeOk) {\n    const homeErr = errors.find((e) => e.url === (fetched[0] || {}).url) || errors[0] || {};\n    accessStatus = homeErr.kind || 'UNREACHABLE';\n  }\n  const totalText = pages.reduce((n, p) => n + p.text_chars, 0);\n  const home = homeOk ? pages[0] : null;\n  const jsSuspected = !!home && home.text_chars < (rs.min_text_chars || 400) && home.script_count >= 5;\n  if (accessStatus === 'OK' && jsSuspected) accessStatus = 'JS_RENDERED_SUSPECTED';\n  else if (accessStatus === 'OK' && totalText < (rs.min_text_chars || 400)) accessStatus = 'INSUFFICIENT_CONTENT';\n\n  const signals = accessStatus === 'OK' ? detectSignals(pages, {\n    industry_group: lead.industry_group,\n    coverage: { page_count: pages.length, has_contact_page: pages.some((p) => p.category === 'contact'), js_suspected: jsSuspected },\n  }) : [];\n\n  const emailsFound = uniq([].concat(...pages.map((p) => p.emails || []))).slice(0, 25);\n  const emailPages = {};\n  for (const p of pages) for (const e of p.emails || []) if (!emailPages[e]) emailPages[e] = p.url;\n  let noUnsolicited = '';\n  const patterns = ((compliance && compliance.no_unsolicited_patterns) || []).map((s) => new RegExp(s, 'i'));\n  for (const p of pages) {\n    for (const re of patterns) {\n      const m = re.exec(p.text || '');\n      if (m) {\n        const t = p.text || '';\n        const start = Math.max(0, t.lastIndexOf('\\n', m.index) + 1);\n        const endNl = t.indexOf('\\n', m.index);\n        noUnsolicited = `${p.url}: \"${truncate(clean(t.slice(start, endNl < 0 ? t.length : endNl)), 160)}\"`;\n        break;\n      }\n    }\n    if (noUnsolicited) break;\n  }\n\n  const summary = accessStatus !== 'OK'\n    ? `Research incomplete (${accessStatus}). ${errors.map((e) => `${e.url}: ${e.kind}`).join('; ')}`\n    : truncate(`${pages.length} page(s) reviewed (${pages.map((p) => p.category).join(', ')}). ` +\n      (home.title ? `Title: \"${home.title}\". ` : '') +\n      `Signals: ${signals.map((s) => s.id).join(', ') || 'none'}.`, 600);\n\n  return {\n    domain: lead.domain,\n    researched_at: now,\n    access_status: accessStatus,\n    pages_reviewed: pages.map((p) => p.url),\n    page_categories: pages.map((p) => p.category),\n    text_chars: totalText,\n    signals,\n    emails_found: emailsFound,\n    email_pages: emailPages,\n    no_unsolicited_notice: noUnsolicited,\n    fetch_errors: errors,\n    summary,\n    site_title: home ? home.title : '',\n    meta_description: home ? home.meta_description : '',\n  };\n}\n\nfunction cacheRowFromResearch(r, settings) {\n  const days = (settings.research && settings.research.cache_days) || 30;\n  const expires = new Date(new Date(r.researched_at).getTime() + days * 86400000).toISOString();\n  return {\n    domain: r.domain,\n    researched_at: r.researched_at,\n    expires_at: expires,\n    access_status: r.access_status,\n    pages_reviewed: r.pages_reviewed.join('\\n'),\n    signals_json: toCell(r.signals),\n    emails_found: toCell(r.email_pages, 8000),\n    no_unsolicited_notice: r.no_unsolicited_notice,\n    text_chars: r.text_chars,\n    summary: r.summary,\n    research_json: toCell({ page_categories: r.page_categories, fetch_errors: r.fetch_errors, site_title: r.site_title, meta_description: r.meta_description }, 20000),\n  };\n}\n\nfunction researchFromCacheRow(row) {\n  const extra = safeJsonParse(row.research_json, {});\n  const emailPages = safeJsonParse(row.emails_found, {});\n  return {\n    domain: clean(row.domain).toLowerCase(),\n    researched_at: row.researched_at,\n    access_status: clean(row.access_status),\n    pages_reviewed: String(row.pages_reviewed || '').split('\\n').filter(Boolean),\n    page_categories: extra.page_categories || [],\n    text_chars: Number(row.text_chars) || 0,\n    signals: safeJsonParse(row.signals_json, []),\n    emails_found: Object.keys(emailPages),\n    email_pages: emailPages,\n    no_unsolicited_notice: clean(row.no_unsolicited_notice),\n    fetch_errors: extra.fetch_errors || [],\n    summary: row.summary || '',\n    site_title: extra.site_title || '',\n    meta_description: extra.meta_description || '',\n    from_cache: true,\n  };\n}\n\nfunction isCacheFresh(row, now) {\n  if (!row || !row.expires_at) return false;\n  const exp = Date.parse(row.expires_at);\n  return Number.isFinite(exp) && exp > new Date(now || Date.now()).getTime();\n}\n\n// Plan for one lead: use cache, or fetch robots.txt first.\nfunction planResearch(lead, cacheByDomain, settings, now) {\n  const cached = cacheByDomain[lead.domain];\n  if (cached && isCacheFresh(cached, now) && !String(lead.reprocess).toUpperCase().startsWith('TRUE')) {\n    return { use_cache: true, research: researchFromCacheRow(cached) };\n  }\n  const root = parseUrl(lead.website);\n  const robotsUrl = root ? `${root.scheme}://${root.host}${root.port ? ':' + root.port : ''}/robots.txt` : '';\n  return { use_cache: false, robots_url: robotsUrl, robots_fetch_url: fetchUrlFor(robotsUrl, settings.fixture_base_url) };\n}\n\nfunction robotsDecision(lead, robotsResponse, settings) {\n  const rs = settings.research || {};\n  if (rs.respect_robots_txt === false) return { blocked: false, groups: [], state: 'ignored' };\n  const j = robotsResponse || {};\n  let parsed;\n  if (j.error) parsed = robotsFromResponse(0, '');\n  else parsed = robotsFromResponse(j.statusCode, typeof j.body === 'string' ? j.body : '');\n  const home = parseUrl(lead.website);\n  const allowed = isAllowed(parsed.groups, rs.user_agent, home ? home.path : '/');\n  return { blocked: !allowed, groups: parsed.groups, state: parsed.state };\n}\n\n// Map research onto the Leads row columns.\nfunction leadUpdateFromResearch(lead, research, settings) {\n  const s0 = research.signals[0] || {};\n  const s1 = research.signals[1] || {};\n  const email = clean(lead.email).toLowerCase();\n  const ok = research.access_status === 'OK';\n  const hasSignals = research.signals.length > 0;\n  return {\n    lead_id: lead.lead_id,\n    website_access_status: research.access_status,\n    pages_reviewed: research.pages_reviewed.join('\\n'),\n    signals_json: toCell(research.signals),\n    observed_issue_1: s0.statement || '',\n    evidence_url_1: s0.evidence_url || '',\n    evidence_snippet_1: s0.evidence_snippet || '',\n    observed_issue_2: s1.statement || '',\n    evidence_url_2: s1.evidence_url || '',\n    evidence_snippet_2: s1.evidence_snippet || '',\n    email_published_url: (research.email_pages && research.email_pages[email]) || '',\n    no_unsolicited_notice: research.no_unsolicited_notice || '',\n    research_summary: research.summary + (research.from_cache ? ' (from cache)' : ''),\n    researched_at: research.researched_at,\n    outreach_status: ok && hasSignals ? 'RESEARCHED' : 'MANUAL_REVIEW',\n    status_reason: ok ? (hasSignals ? '' : 'no_credible_observations') : `research_${research.access_status.toLowerCase()}`,\n    reprocess: '',\n    updated_at: isoNow(),\n  };\n}\n\nmodule.exports = {\n  selectPages, interpretResponse, buildResearch, cacheRowFromResearch, researchFromCacheRow, isCacheFresh,\n  planResearch, robotsDecision, leadUpdateFromResearch, categorise,\n};\n\n};\nconst __cache = {};\nfunction __require(n) { n = n.replace(/^\\.\\//, '').replace(/\\.js$/, ''); if (__cache[n]) return __cache[n].exports; const m = { exports: {} }; __cache[n] = m; __defs[n](m, m.exports, __require); return m.exports; }\nconst lib = { research: __require(\"research\"), html: __require(\"html\"), url: __require(\"url\"), util: __require(\"util\") };\n// ===== end of bundle =====\n\nconst CFG = $('Config').first().json;\nconst S = CFG.settings;\nconst rowsOf = (name) => { try { return $(name).all().map((i) => i.json).filter((r) => r && Object.keys(r).length && !r.error); } catch (e) { return []; } };\n// One lead per run. Fetches robots.txt, the homepage and up to 3 more pages,\n// sequentially, with a pause between requests. Any failure is recorded on the\n// lead (manual review) instead of stopping the batch.\nconst { lead, cache_row } = $input.first().json;\nconst rs = S.research;\nconst sleep = (ms) => new Promise((r) => setTimeout(r, ms));\nasync function get(url) {\n  try {\n    const res = await helpers.httpRequest({\n      method: 'GET', url: lib.url.fetchUrlFor(url, S.fixture_base_url), timeout: rs.request_timeout_ms,\n      headers: { 'user-agent': rs.user_agent, accept: 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.5' },\n      returnFullResponse: true, ignoreHttpStatusErrors: true, encoding: 'text', json: false,\n    });\n    return { statusCode: res.statusCode, headers: res.headers || {}, body: typeof res.body === 'string' ? res.body : JSON.stringify(res.body || '') };\n  } catch (e) {\n    return { error: { message: String((e && (e.message || e.code)) || e) } };\n  }\n}\nlet research;\ntry {\n  const plan = lib.research.planResearch(lead, cache_row ? { [lead.domain]: cache_row } : {}, S);\n  if (plan.use_cache) research = plan.research;\n  else {\n    const robots = lib.research.robotsDecision(lead, await get(plan.robots_url), S);\n    const fetched = [];\n    if (!robots.blocked) {\n      await sleep(rs.request_interval_ms);\n      const home = await get(lead.website);\n      fetched.push({ url: lead.website, category: 'home', response: home });\n      const hr = lib.research.interpretResponse(home, rs.max_html_chars);\n      if (hr.ok) {\n        for (const p of lib.research.selectPages(lib.html.extractPage(hr.body, lead.website), robots.groups, S)) {\n          await sleep(rs.request_interval_ms);\n          fetched.push({ url: p.url, category: p.category, response: await get(p.url) });\n        }\n      }\n    }\n    research = lib.research.buildResearch({ lead, robots, fetched, settings: S, compliance: CFG.compliance });\n  }\n  const update = lib.research.leadUpdateFromResearch(lead, research, S);\n  const cacheRow = research.from_cache ? cache_row : lib.research.cacheRowFromResearch(research, S);\n  return [{ json: { update, cache_row: cacheRow } }];\n} catch (e) {\n  const now = new Date().toISOString();\n  return [{ json: {\n    update: { lead_id: lead.lead_id, outreach_status: 'MANUAL_REVIEW', status_reason: 'research_exception', last_error: lib.util.errorMessage(e), updated_at: now },\n    cache_row: { domain: lead.domain || 'unknown', researched_at: now, expires_at: now, access_status: 'ERROR', summary: lib.util.errorMessage(e) },\n  } }];\n}\n"
+      },
+      "id": "fhq-001b-research-website",
+      "name": "Research website",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nreturn [{ json: $input.first().json.update }];\n"
+      },
+      "id": "fhq-001c-lead-update",
+      "name": "Lead update",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1920,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "sheet",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('Config').first().json.settings.spreadsheet_id }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('Config').first().json.settings.sheets.leads }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "lead_id"
+          ],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "cellFormat": "RAW",
+          "handlingExtraData": "ignoreIt"
+        }
+      },
+      "id": "fhq-001d-update-lead",
+      "name": "Update lead",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2160,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "flowhqSheetsCred",
+          "name": "FlowHQ Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\nreturn [{ json: $('Research website').first().json.cache_row }];\n"
+      },
+      "id": "fhq-001e-cache-row",
+      "name": "Cache row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "sheet",
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('Config').first().json.settings.spreadsheet_id }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('Config').first().json.settings.sheets.research_cache }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "domain"
+          ],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "cellFormat": "RAW",
+          "handlingExtraData": "ignoreIt"
+        }
+      },
+      "id": "fhq-001f-save-research-cache",
+      "name": "Save research cache",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2640,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "flowhqSheetsCred",
+          "name": "FlowHQ Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst n = $('Select leads to research').all().filter((i) => i.json.lead).length;\nreturn [{ json: { researched: n } }];\n"
+      },
+      "id": "fhq-0020-run-summary",
+      "name": "Run summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        -200
+      ]
+    }
+  ],
+  "connections": {
+    "Every hour": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run manually": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Read Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Settings": {
+      "main": [
+        [
+          {
+            "node": "Read Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Leads": {
+      "main": [
+        [
+          {
+            "node": "Read Research Cache",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Research Cache": {
+      "main": [
+        [
+          {
+            "node": "Select leads to research",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select leads to research": {
+      "main": [
+        [
+          {
+            "node": "One site at a time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "One site at a time": {
+      "main": [
+        [
+          {
+            "node": "Run summary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Research website",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Research website": {
+      "main": [
+        [
+          {
+            "node": "Lead update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lead update": {
+      "main": [
+        [
+          {
+            "node": "Update lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update lead": {
+      "main": [
+        [
+          {
+            "node": "Cache row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cache row": {
+      "main": [
+        [
+          {
+            "node": "Save research cache",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save research cache": {
+      "main": [
+        [
+          {
+            "node": "One site at a time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "errorWorkflow": "FlowHQ99ErrorLog"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

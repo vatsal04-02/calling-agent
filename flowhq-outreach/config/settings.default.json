@@ -1,0 +1,95 @@
+{
+  "_comment": "Static, non-secret configuration baked into every workflow's 'Config' node by scripts/build-workflows.js. Copy to config/settings.local.json (git-ignored) to override. Secrets never go here: API keys and OAuth tokens live in n8n credentials.",
+
+  "spreadsheet_id": "REPLACE_WITH_OUTREACH_SPREADSHEET_ID",
+  "source": {
+    "_comment": "Where your raw leads live. Leave spreadsheet_id empty to use the outreach spreadsheet above. The source sheet is only ever READ.",
+    "spreadsheet_id": "",
+    "sheet_name": "Leads_Source"
+  },
+  "sheets": {
+    "leads": "Leads",
+    "research_cache": "Research_Cache",
+    "send_log": "Send_Log",
+    "suppression": "Suppression",
+    "error_log": "Error_Log",
+    "settings": "Settings",
+    "inbox_log": "Inbox_Log"
+  },
+
+  "sender": {
+    "name": "REPLACE_WITH_YOUR_NAME",
+    "email": "REPLACE_WITH_GMAIL_ADDRESS",
+    "company": "FlowHQ",
+    "website": "https://flowhq.in",
+    "postal_address": "REPLACE_WITH_POSTAL_ADDRESS",
+    "reply_to": "",
+    "unsubscribe_mailto": "",
+    "unsubscribe_url_base": "",
+    "company_description": "FlowHQ builds custom websites and AI automation systems for small and medium-sized businesses."
+  },
+
+  "sending": {
+    "SENDING_ENABLED": false,
+    "TEST_MODE": true,
+    "REQUIRE_APPROVAL": true,
+    "test_allowlist": [],
+    "test_redirect_to": "",
+    "max_sends_per_run": 5,
+    "max_sends_per_day": 20,
+    "send_interval_seconds": 90,
+    "send_jitter_seconds": 30,
+    "max_retries": 3,
+    "retry_backoff_minutes": 30,
+    "domain_cooldown_days": 180,
+    "one_contact_per_domain": true,
+    "live_approval": {
+      "_comment": "Live sending stays blocked until BOTH fields are filled in by the account owner after reviewing test results.",
+      "approved_by": "",
+      "approved_at": ""
+    },
+    "gmail_api_base": "https://gmail.googleapis.com"
+  },
+
+  "research": {
+    "user_agent": "FlowHQ-ResearchBot/1.0 (+https://flowhq.in; business website review)",
+    "max_pages_per_site": 4,
+    "request_timeout_ms": 15000,
+    "request_interval_ms": 1500,
+    "max_html_chars": 600000,
+    "min_text_chars": 400,
+    "cache_days": 30,
+    "batch_size": 10,
+    "respect_robots_txt": true
+  },
+
+  "generation": {
+    "batch_size": 10,
+    "min_confidence": 0.6,
+    "max_signals": 2,
+    "max_services": 2,
+    "body_min_words": 60,
+    "body_max_words": 170,
+    "subject_max_chars": 60,
+    "no_recommendation_action": "MANUAL_REVIEW"
+  },
+
+  "llm": {
+    "_comment": "provider: anthropic | openai_compatible | template. 'template' uses no AI model at all (zero cost, more formulaic wording). The API key is stored in the n8n credential named in credential_type, never here.",
+    "provider": "anthropic",
+    "model": "claude-haiku-5-5",
+    "endpoint": "https://api.anthropic.com/v1/messages",
+    "credential_type": "anthropicApi",
+    "max_tokens": 3000,
+    "effort": "low",
+    "openai_response_format": "json_object",
+    "temperature": 0.4
+  },
+
+  "countries": {
+    "enabled": ["US", "GB", "AU", "NZ"]
+  },
+
+  "allow_synthetic_domains": false,
+  "fixture_base_url": ""
+}

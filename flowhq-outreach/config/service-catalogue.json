@@ -1,0 +1,411 @@
+{
+  "_comment": "FlowHQ services the system may recommend. Only services with enabled=true are ever suggested. Review every entry and disable anything FlowHQ cannot currently deliver. 'signals' lists the website observations a service can address (see lib/signals.js); 'weight' scales how strongly that observation supports the service. Benefit statements are the only benefit wording the email writer may use.",
+  "services": [
+    {
+      "id": "appointment_scheduling",
+      "enabled": true,
+      "name": "Online booking and appointment reminders",
+      "description": "Lets customers book or request appointments online, with automatic confirmations, reminders and rescheduling links.",
+      "pitch": "an online booking option with automatic confirmations and reminders",
+      "signals": {
+        "booking_by_phone_or_email": 1.0,
+        "booking_not_found": 0.85,
+        "pdf_intake_forms": 0.3
+      },
+      "industries_fit": [
+        "appointment"
+      ],
+      "required_integrations": [
+        "Existing calendar or practice-management system (e.g. Google Calendar, Cliniko, Square Appointments)",
+        "SMS or email sender"
+      ],
+      "limitations": "Depends on the business's calendar or practice-management system offering an integration; some regulated industries need extra privacy review.",
+      "approved_benefits": [
+        "customers can book at a time that suits them, including outside opening hours",
+        "fewer phone calls and emails spent arranging times",
+        "automatic reminders that can help reduce missed appointments"
+      ],
+      "example_use_cases": [
+        "Dental clinic online booking with SMS reminders",
+        "Physio rescheduling links"
+      ]
+    },
+    {
+      "id": "ai_receptionist",
+      "enabled": true,
+      "name": "AI phone receptionist",
+      "description": "Answers inbound calls when the team is busy or closed, captures the caller's details and reason for calling, and passes a summary to the team.",
+      "pitch": "an AI receptionist that answers calls when the team is busy or closed and sends you a summary of each one",
+      "signals": {
+        "phone_primary_contact": 0.9,
+        "opening_hours_listed": 0.7,
+        "booking_by_phone_or_email": 0.6
+      },
+      "industries_fit": [
+        "*"
+      ],
+      "required_integrations": [
+        "Call forwarding from the business's phone number",
+        "Email, SMS or CRM for call summaries"
+      ],
+      "limitations": "Needs the business to forward calls; it handles routine calls and hands off anything complex to a person.",
+      "approved_benefits": [
+        "calls outside opening hours or during busy periods still get answered",
+        "the team receives a short summary of each call instead of a voicemail",
+        "routine questions can be answered without interrupting staff"
+      ],
+      "example_use_cases": [
+        "After-hours call answering for a plumbing business",
+        "Overflow calls for a busy clinic front desk"
+      ]
+    },
+    {
+      "id": "enquiry_followup",
+      "enabled": true,
+      "name": "Enquiry acknowledgement and follow-up",
+      "description": "Sends an immediate, personalised acknowledgement to each website enquiry, organises the details, notifies the right person and schedules follow-up reminders.",
+      "pitch": "an automated enquiry workflow that acknowledges each new request straight away, organises the details and reminds the team to follow up",
+      "signals": {
+        "contact_form_present": 0.8,
+        "quote_by_phone_or_email": 0.5,
+        "many_services_listed": 0.5
+      },
+      "industries_fit": [
+        "*"
+      ],
+      "required_integrations": [
+        "Website form",
+        "Email",
+        "Optional CRM or spreadsheet"
+      ],
+      "limitations": "Works best when enquiries arrive through a form or a single inbox.",
+      "approved_benefits": [
+        "every enquiry gets a prompt acknowledgement, even when the team is busy",
+        "enquiry details arrive organised in one place",
+        "follow-ups happen consistently instead of relying on memory"
+      ],
+      "example_use_cases": [
+        "Auto-acknowledge and route contact-form enquiries to the right team member"
+      ]
+    },
+    {
+      "id": "quote_request_workflow",
+      "enabled": true,
+      "name": "Online quote-request workflow",
+      "description": "A short guided quote-request form that collects the job details up front, acknowledges the request and notifies the team.",
+      "pitch": "a short online quote-request form that collects the job details up front and acknowledges each request automatically",
+      "signals": {
+        "quote_by_phone_or_email": 1.0
+      },
+      "industries_fit": [
+        "trades",
+        "services"
+      ],
+      "required_integrations": [
+        "Website",
+        "Email or CRM"
+      ],
+      "limitations": "Final pricing still comes from the business; the workflow collects the details needed to quote.",
+      "approved_benefits": [
+        "customers can request a quote whenever suits them",
+        "the team receives the details needed to quote without back-and-forth",
+        "each request gets an immediate acknowledgement"
+      ],
+      "example_use_cases": [
+        "Electrician quote form with photo upload and instant acknowledgement"
+      ]
+    },
+    {
+      "id": "lead_capture_crm",
+      "enabled": true,
+      "name": "Lead capture and CRM automation",
+      "description": "Captures enquiries from the website, email and phone into one organised list or CRM, with automatic tagging and reminders.",
+      "pitch": "a simple enquiry form connected to an organised enquiry list, so every request is captured in one place",
+      "signals": {
+        "no_contact_form_found": 0.85,
+        "contact_form_present": 0.4
+      },
+      "industries_fit": [
+        "*"
+      ],
+      "required_integrations": [
+        "Website",
+        "Email",
+        "CRM or Google Sheets"
+      ],
+      "limitations": "Requires agreement on where enquiries should be stored.",
+      "approved_benefits": [
+        "enquiries from different channels end up in one organised place",
+        "less manual copying of enquiry details",
+        "it's easier to see which enquiries still need a reply"
+      ],
+      "example_use_cases": [
+        "Website form plus inbox parsing into a shared CRM"
+      ]
+    },
+    {
+      "id": "ai_website_assistant",
+      "enabled": true,
+      "name": "AI website assistant",
+      "description": "An assistant on the website that answers common questions from the business's own content and collects enquiry details when someone is ready to get in touch.",
+      "pitch": "an AI assistant on the website that answers common questions from your own content and collects enquiry details",
+      "signals": {
+        "faq_extensive": 1.0,
+        "opening_hours_listed": 0.4,
+        "no_contact_form_found": 0.4,
+        "many_services_listed": 0.4
+      },
+      "industries_fit": [
+        "*"
+      ],
+      "exclude_if_signals": [
+        "chat_widget_present"
+      ],
+      "required_integrations": [
+        "Website script embed",
+        "Business-approved knowledge content"
+      ],
+      "limitations": "Answers only from approved content and hands off anything it cannot answer.",
+      "approved_benefits": [
+        "visitors get answers to common questions straight away",
+        "fewer repetitive questions reach the team",
+        "enquiry details are collected even outside business hours"
+      ],
+      "example_use_cases": [
+        "FAQ assistant for a veterinary clinic that also collects appointment requests"
+      ]
+    },
+    {
+      "id": "client_onboarding",
+      "enabled": true,
+      "name": "Client onboarding and intake forms",
+      "description": "Replaces downloadable paperwork with online intake forms that feed directly into the business's systems, with automatic reminders to complete them.",
+      "pitch": "online intake forms that feed straight into your systems, with automatic reminders to complete them",
+      "signals": {
+        "pdf_intake_forms": 1.0
+      },
+      "industries_fit": [
+        "*"
+      ],
+      "required_integrations": [
+        "Online form tool",
+        "Practice-management system, CRM or secure storage"
+      ],
+      "limitations": "Health and legal businesses may need specific privacy and data-storage requirements reviewed.",
+      "approved_benefits": [
+        "clients can complete forms online before their first visit",
+        "less time re-typing details from paper or PDF forms",
+        "automatic reminders for forms that haven't been completed"
+      ],
+      "example_use_cases": [
+        "New-patient intake form for a physiotherapy clinic"
+      ]
+    },
+    {
+      "id": "enquiry_journey_improvements",
+      "enabled": true,
+      "name": "Website enquiry journey improvements",
+      "description": "Small website changes that make the next step obvious, such as a clear call to action and contact options that are easy to find.",
+      "pitch": "a few small website changes that make the next step obvious, such as a clear call to action and easy-to-find contact options",
+      "signals": {
+        "no_clear_cta_homepage": 1.0,
+        "contact_not_on_homepage": 1.0,
+        "no_mobile_viewport": 0.6
+      },
+      "industries_fit": [
+        "*"
+      ],
+      "required_integrations": [
+        "Website edit access"
+      ],
+      "limitations": "Recommendations are based on a limited review of public pages, not analytics.",
+      "approved_benefits": [
+        "visitors can see the next step quickly",
+        "it's easier for interested customers to get in touch"
+      ],
+      "example_use_cases": [
+        "Adding a clear 'Book a consultation' button and contact details to the homepage"
+      ]
+    },
+    {
+      "id": "review_requests",
+      "enabled": true,
+      "name": "Review-request automation",
+      "description": "Automatically asks happy customers for a review after a completed job or appointment.",
+      "pitch": "an automatic review request sent after each completed job or appointment",
+      "signals": {
+        "reviews_mentioned": 0.6
+      },
+      "industries_fit": [
+        "*"
+      ],
+      "required_integrations": [
+        "Booking or job-completion trigger",
+        "SMS or email"
+      ],
+      "limitations": "Must follow the review platform's rules; no incentives or review gating.",
+      "approved_benefits": [
+        "review requests go out consistently after each job",
+        "less manual effort spent asking for reviews"
+      ],
+      "example_use_cases": [
+        "Google review request sent the day after a completed service"
+      ]
+    },
+    {
+      "id": "support_triage",
+      "enabled": true,
+      "name": "Customer support triage",
+      "description": "Sorts incoming messages by topic and urgency and routes them to the right person, with suggested replies for common questions.",
+      "pitch": "a workflow that sorts incoming messages by topic and urgency and routes them to the right person",
+      "signals": {
+        "chat_widget_present": 0.4,
+        "many_services_listed": 0.3
+      },
+      "industries_fit": [
+        "*"
+      ],
+      "required_integrations": [
+        "Shared inbox or helpdesk"
+      ],
+      "limitations": "Suggested replies are reviewed by staff before sending.",
+      "approved_benefits": [
+        "urgent messages reach the right person sooner",
+        "less time spent sorting the inbox"
+      ],
+      "example_use_cases": [
+        "Routing service, billing and booking emails to different team members"
+      ]
+    },
+    {
+      "id": "reporting_admin",
+      "enabled": true,
+      "name": "Internal reporting and admin automation",
+      "description": "Automates repetitive admin such as weekly enquiry summaries, data entry between systems and status reports.",
+      "pitch": "automating repetitive admin such as weekly enquiry summaries",
+      "signals": {},
+      "industries_fit": [
+        "*"
+      ],
+      "required_integrations": [
+        "Varies by business"
+      ],
+      "limitations": "Not recommended from a website review alone; only discussed once internal processes are known.",
+      "approved_benefits": [
+        "less time spent on repetitive admin"
+      ],
+      "example_use_cases": [
+        "Weekly summary of new enquiries and bookings emailed to the owner"
+      ]
+    }
+  ],
+  "industry_groups": {
+    "appointment": [
+      "dental",
+      "dentist",
+      "orthodont",
+      "clinic",
+      "medical",
+      "doctor",
+      "gp",
+      "physio",
+      "physiotherap",
+      "chiropract",
+      "osteopath",
+      "podiatr",
+      "optometr",
+      "optician",
+      "psycholog",
+      "counsel",
+      "therap",
+      "massage",
+      "salon",
+      "hair",
+      "barber",
+      "beauty",
+      "spa",
+      "nail",
+      "lash",
+      "brow",
+      "aesthetic",
+      "cosmetic",
+      "vet",
+      "veterinar",
+      "groom",
+      "fitness",
+      "gym",
+      "personal trainer",
+      "pilates",
+      "yoga",
+      "tutor",
+      "driving school",
+      "audiolog",
+      "dietit",
+      "naturopath",
+      "acupunct"
+    ],
+    "trades": [
+      "plumb",
+      "electric",
+      "hvac",
+      "heating",
+      "air condition",
+      "roof",
+      "builder",
+      "construct",
+      "landscap",
+      "garden",
+      "paint",
+      "carpent",
+      "handyman",
+      "clean",
+      "pest",
+      "lock",
+      "glaz",
+      "fenc",
+      "pool",
+      "solar",
+      "flooring",
+      "tiling",
+      "renovat",
+      "removal",
+      "moving",
+      "concrete",
+      "gutter",
+      "arborist",
+      "tree"
+    ],
+    "services": [
+      "law",
+      "legal",
+      "solicitor",
+      "attorney",
+      "accountant",
+      "accounting",
+      "bookkeep",
+      "tax",
+      "real estate",
+      "property",
+      "mortgage",
+      "insurance",
+      "consult",
+      "agency",
+      "marketing",
+      "architect",
+      "engineer",
+      "photograph",
+      "event",
+      "wedding",
+      "catering",
+      "printing",
+      "signage",
+      "auto",
+      "mechanic",
+      "car repair",
+      "detailing",
+      "storage",
+      "it support",
+      "web design"
+    ]
+  }
+}

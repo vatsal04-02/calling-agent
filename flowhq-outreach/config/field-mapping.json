@@ -1,0 +1,24 @@
+{
+  "_comment": "Maps your spreadsheet's column headers to the canonical fields. 'explicit' wins over 'aliases'. Header matching ignores case, spaces, underscores and punctuation. Columns that match nothing are preserved untouched in original_row_json.",
+  "explicit": {},
+  "aliases": {
+    "lead_id": ["lead id", "leadid", "id", "record id", "row id"],
+    "business_name": ["business name", "business", "company", "company name", "organisation", "organization", "account", "account name", "practice name", "clinic name", "name of business", "trading name"],
+    "contact_name": ["contact name", "contact", "full name", "contact person", "owner name", "decision maker", "name"],
+    "first_name": ["first name", "firstname", "given name", "forename"],
+    "last_name": ["last name", "lastname", "surname", "family name"],
+    "email": ["email", "email address", "e-mail", "e mail", "contact email", "work email", "business email", "primary email"],
+    "website": ["website", "website url", "url", "web", "site", "domain", "company website", "homepage", "web address"],
+    "country": ["country", "country code", "nation", "location country"],
+    "industry": ["industry", "category", "niche", "sector", "vertical", "business type", "business category", "type"],
+    "source": ["source", "lead source", "list source", "origin"],
+    "notes": ["notes", "note", "comments", "existing notes", "remarks"],
+    "outreach_status": ["outreach status", "status", "lead status"],
+    "phone": ["phone", "phone number", "telephone", "tel", "mobile"],
+    "city": ["city", "town", "suburb", "locality"],
+    "state": ["state", "region", "province", "county"],
+    "legal_basis_confirmed": ["legal basis confirmed", "consent", "consent confirmed", "lawful basis"]
+  },
+  "required": ["business_name", "email", "website"],
+  "source_statuses_to_skip": ["contacted", "sent", "emailed", "do not contact", "dnc", "unsubscribed", "opted out", "customer", "client", "bounced", "replied"]
+}

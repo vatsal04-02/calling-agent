@@ -1,0 +1,57 @@
+{
+  "_comment": "Per-country sending gates enforced by the Send workflow. This is an engineering control, not legal advice: see docs/COMPLIANCE.md and confirm with a lawyer before live sending. Add a country here before enabling it in settings.countries.enabled.",
+  "countries": {
+    "US": {
+      "law": "CAN-SPAM Act (15 U.S.C. 7701-7713) and FTC CAN-SPAM Rule",
+      "consent_model": "opt_out",
+      "require_legal_basis_confirmation": false,
+      "require_published_address_evidence": false,
+      "require_postal_address": true,
+      "require_unsubscribe": true,
+      "require_ad_disclosure": true,
+      "language": "en-US",
+      "notes": "No prior consent required for B2B email, but every message needs accurate headers, a non-deceptive subject, identification as an advertisement/solicitation, a valid physical postal address and a working opt-out honoured promptly."
+    },
+    "GB": {
+      "law": "Privacy and Electronic Communications Regulations 2003 (PECR) and UK GDPR",
+      "consent_model": "corporate_subscriber_opt_out_individual_subscriber_consent",
+      "require_legal_basis_confirmation": true,
+      "require_published_address_evidence": false,
+      "require_postal_address": true,
+      "require_unsubscribe": true,
+      "require_ad_disclosure": false,
+      "language": "en-GB",
+      "notes": "Unsolicited marketing email to corporate subscribers (limited companies, LLPs, Scottish partnerships, government bodies) is permitted without consent if the sender is identified and an opt-out is provided. Sole traders and ordinary partnerships are individual subscribers and generally need prior consent. Named employee addresses are personal data under UK GDPR, so a documented legitimate-interests assessment and a privacy notice are needed. Set legal_basis_confirmed=TRUE on a lead only after confirming it is a corporate subscriber."
+    },
+    "AU": {
+      "law": "Spam Act 2003 (Cth), enforced by ACMA",
+      "consent_model": "express_or_inferred_consent",
+      "require_legal_basis_confirmation": false,
+      "require_published_address_evidence": true,
+      "require_postal_address": false,
+      "require_unsubscribe": true,
+      "require_ad_disclosure": false,
+      "language": "en-GB",
+      "notes": "Commercial email needs consent. Inferred consent from a conspicuously published address applies only if the address is publicly published, the publication does not say unsolicited messages are unwanted, and the message relates directly to the recipient's role or business. The workflow records where the address was found; a human must still confirm role relevance at approval time. Sender identification and a functional unsubscribe are mandatory; unsubscribes must be honoured within 5 business days."
+    },
+    "NZ": {
+      "law": "Unsolicited Electronic Messages Act 2007, enforced by the Department of Internal Affairs",
+      "consent_model": "express_deemed_or_inferred_consent",
+      "require_legal_basis_confirmation": false,
+      "require_published_address_evidence": true,
+      "require_postal_address": false,
+      "require_unsubscribe": true,
+      "require_ad_disclosure": false,
+      "language": "en-GB",
+      "notes": "Commercial email needs consent. Deemed consent applies where a business address is conspicuously published, there is no statement refusing unsolicited messages, and the message is relevant to the recipient's business role. The sender bears the burden of proving consent. Sender identification and a functional unsubscribe are mandatory; unsubscribes must be honoured within 5 working days."
+    }
+  },
+  "no_unsolicited_patterns": [
+    "no unsolicited",
+    "unsolicited (?:emails?|messages?|marketing|solicitations?) (?:are|is) not (?:accepted|welcome|wanted)",
+    "do not (?:send|email) (?:us )?(?:unsolicited|marketing|sales|spam)",
+    "no (?:marketing|sales|spam|solicitations?|cold) (?:emails?|calls?|enquiries|inquiries|please)",
+    "not accept (?:unsolicited|marketing|sales)",
+    "we do not wish to receive"
+  ]
+}

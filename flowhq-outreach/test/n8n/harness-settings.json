@@ -1,0 +1,11 @@
+{
+  "_comment": "Overrides used ONLY for the n8n harness build (out/harness). MOCK and FIXTURE are replaced at build time with local test servers.",
+  "spreadsheet_id": "HARNESS_SPREADSHEET",
+  "allow_synthetic_domains": true,
+  "fixture_base_url": "FIXTURE",
+  "sender": { "name": "Alex Tester", "email": "sender@flowhq-test.example", "postal_address": "1 Test Street, Testville" },
+  "sending": { "SENDING_ENABLED": true, "TEST_MODE": true, "send_interval_seconds": 1, "send_jitter_seconds": 0 },
+  "research": { "request_interval_ms": 100, "batch_size": 50 },
+  "generation": { "batch_size": 50 },
+  "llm": { "provider": "anthropic", "model": "claude-haiku-5-5", "endpoint": "MOCK/v1/messages" }
+}

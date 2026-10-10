@@ -1,0 +1,11 @@
+node_modules/
+out/
+config/settings.local.json
+*.local.json
+.env
+.env.*
+# Never commit real lead data
+data/real/
+data/private/
+*.real.csv
+*.real.xlsx

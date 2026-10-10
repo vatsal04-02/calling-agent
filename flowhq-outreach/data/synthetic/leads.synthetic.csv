@@ -1,0 +1,19 @@
+Company Name,Contact,E-mail,Web Site,Country,Category,Lead Source,Comments,Status,City
+Bright Smile Dental,Dr. Sarah Chen,hello@brightsmile-dental.example,brightsmile-dental.example,USA,Dental clinic,SYNTHETIC TEST DATA,Normal site; call-to-book + PDF forms,,Austin
+Harbour Plumbing,,info@harbourplumbing.example,https://www.harbourplumbing.example/,Australia,Plumbing,SYNTHETIC TEST DATA,No named contact; quotes by phone,,Sydney
+Kiwi Physio,Mere Ngata,mere@kiwiphysio.example,kiwiphysio.example,New Zealand,Physiotherapy,SYNTHETIC TEST DATA,Many services + FAQ + online booking,,Wellington
+Greenleaf Accountants,Tom Harris,tom@greenleaf-accountants.example,greenleaf-accountants.example,UK,Accounting,SYNTHETIC TEST DATA,Website blocks automated requests (403),,Leeds
+Tiny Bakes,Lucy,lucy@tinybakes.example,tinybakes.example,US,Bakery,SYNTHETIC TEST DATA,Very little website content,,Portland
+Summit Roofing,Reception,office@summitroofing.example,summitroofing.example,United States,Roofing contractor,SYNTHETIC TEST DATA,Clear observed opportunity,,Denver
+Bad Email Co,Jane Doe,not-an-email,bademail.example,US,Cleaning,SYNTHETIC TEST DATA,Invalid email,,Miami
+BRIGHT SMILE DENTAL,Sarah Chen,Hello@BrightSmile-Dental.example,https://brightsmile-dental.example/contact,USA,Dental,SYNTHETIC TEST DATA,Duplicate of row 1,,Austin
+Coastal Vets,,frontdesk@coastalvets.example,coastalvets.example,Australia,Veterinary clinic,SYNTHETIC TEST DATA,Opted out (on suppression list),,Perth
+Northside Florist,Ana Lopez,ana@northsideflorist.example,northsideflorist.example,US,Florist,SYNTHETIC TEST DATA,No credible recommendation expected,,Chicago
+Private Clinic Group,Dr Amir Khan,amir@privateclinic.example,privateclinic.example,UK,Medical clinic,SYNTHETIC TEST DATA,robots.txt disallows all,,London
+Maple Dental,Chris Wong,chris@mapledental.example,mapledental.example,Canada,Dental,SYNTHETIC TEST DATA,Country not enabled,,Toronto
+Insta Salon,Kim,kim@instasalon.example,https://www.instagram.com/instasalon,US,Hair salon,SYNTHETIC TEST DATA,Website is a social profile,,Boston
+No Site Builders,Pat,pat@nosite.example,,Australia,Builder,SYNTHETIC TEST DATA,Missing website,,Brisbane
+Oxford Hair Studio,Emma Wilson,emma@oxfordhair.example,oxfordhair.example,England,Hair salon,SYNTHETIC TEST DATA,GB lead; needs legal-basis confirmation,,Oxford
+Metro Electrical,,admin@metroelectrical.example,metroelectrical.example,AU,Electrician,SYNTHETIC TEST DATA,Site says no unsolicited emails,,Melbourne
+Serenity Day Spa,Olivia,olivia@serenityspa.example,serenityspa.example,New Zealand,Day spa,SYNTHETIC TEST DATA,JavaScript-rendered site,,Auckland
+Do Not Contact Ltd,Sam,sam@dnc.example,dnc.example,US,Consulting,SYNTHETIC TEST DATA,Source status says do not contact,Do Not Contact,Seattle

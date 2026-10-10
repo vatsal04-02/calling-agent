@@ -1,0 +1,286 @@
+{
+  "id": "FlowHQ0Preflight",
+  "name": "FlowHQ 00 - Preflight check (read-only)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## FlowHQ 00 - Preflight check\nRun this first after importing. Read-only: verifies config placeholders are filled, every spreadsheet tab and column exists, and the Gmail OAuth credential actually works (reads the profile; sends nothing).",
+        "height": 340,
+        "width": 420
+      },
+      "id": "fhq-0008-notes",
+      "name": "Notes",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -520,
+        -380
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "fhq-0002-run-manually",
+      "name": "Run manually",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Static FlowHQ configuration (generated from config/*.json). No secrets here: keys live in n8n credentials.\nreturn [{ json: {\n \"settings\": {\n  \"_comment\": \"Static, non-secret configuration baked into every workflow's 'Config' node by scripts/build-workflows.js. Copy to config/settings.local.json (git-ignored) to override. Secrets never go here: API keys and OAuth tokens live in n8n credentials.\",\n  \"spreadsheet_id\": \"REPLACE_WITH_OUTREACH_SPREADSHEET_ID\",\n  \"source\": {\n   \"_comment\": \"Where your raw leads live. Leave spreadsheet_id empty to use the outreach spreadsheet above. The source sheet is only ever READ.\",\n   \"spreadsheet_id\": \"\",\n   \"sheet_name\": \"Leads_Source\"\n  },\n  \"sheets\": {\n   \"leads\": \"Leads\",\n   \"research_cache\": \"Research_Cache\",\n   \"send_log\": \"Send_Log\",\n   \"suppression\": \"Suppression\",\n   \"error_log\": \"Error_Log\",\n   \"settings\": \"Settings\",\n   \"inbox_log\": \"Inbox_Log\"\n  },\n  \"sender\": {\n   \"name\": \"REPLACE_WITH_YOUR_NAME\",\n   \"email\": \"REPLACE_WITH_GMAIL_ADDRESS\",\n   \"company\": \"FlowHQ\",\n   \"website\": \"https://flowhq.in\",\n   \"postal_address\": \"REPLACE_WITH_POSTAL_ADDRESS\",\n   \"reply_to\": \"\",\n   \"unsubscribe_mailto\": \"\",\n   \"unsubscribe_url_base\": \"\",\n   \"company_description\": \"FlowHQ builds custom websites and AI automation systems for small and medium-sized businesses.\"\n  },\n  \"sending\": {\n   \"SENDING_ENABLED\": false,\n   \"TEST_MODE\": true,\n   \"REQUIRE_APPROVAL\": true,\n   \"test_allowlist\": [],\n   \"test_redirect_to\": \"\",\n   \"max_sends_per_run\": 5,\n   \"max_sends_per_day\": 20,\n   \"send_interval_seconds\": 90,\n   \"send_jitter_seconds\": 30,\n   \"max_retries\": 3,\n   \"retry_backoff_minutes\": 30,\n   \"domain_cooldown_days\": 180,\n   \"one_contact_per_domain\": true,\n   \"live_approval\": {\n    \"_comment\": \"Live sending stays blocked until BOTH fields are filled in by the account owner after reviewing test results.\",\n    \"approved_by\": \"\",\n    \"approved_at\": \"\"\n   },\n   \"gmail_api_base\": \"https://gmail.googleapis.com\"\n  },\n  \"research\": {\n   \"user_agent\": \"FlowHQ-ResearchBot/1.0 (+https://flowhq.in; business website review)\",\n   \"max_pages_per_site\": 4,\n   \"request_timeout_ms\": 15000,\n   \"request_interval_ms\": 1500,\n   \"max_html_chars\": 600000,\n   \"min_text_chars\": 400,\n   \"cache_days\": 30,\n   \"batch_size\": 10,\n   \"respect_robots_txt\": true\n  },\n  \"generation\": {\n   \"batch_size\": 10,\n   \"min_confidence\": 0.6,\n   \"max_signals\": 2,\n   \"max_services\": 2,\n   \"body_min_words\": 60,\n   \"body_max_words\": 170,\n   \"subject_max_chars\": 60,\n   \"no_recommendation_action\": \"MANUAL_REVIEW\"\n  },\n  \"llm\": {\n   \"_comment\": \"provider: anthropic | openai_compatible | template. 'template' uses no AI model at all (zero cost, more formulaic wording). The API key is stored in the n8n credential named in credential_type, never here.\",\n   \"provider\": \"anthropic\",\n   \"model\": \"claude-haiku-5-5\",\n   \"endpoint\": \"https://api.anthropic.com/v1/messages\",\n   \"credential_type\": \"anthropicApi\",\n   \"max_tokens\": 3000,\n   \"effort\": \"low\",\n   \"openai_response_format\": \"json_object\",\n   \"temperature\": 0.4\n  },\n  \"countries\": {\n   \"enabled\": [\n    \"US\",\n    \"GB\",\n    \"AU\",\n    \"NZ\"\n   ]\n  },\n  \"allow_synthetic_domains\": false,\n  \"fixture_base_url\": \"\"\n },\n \"catalogue\": {\n  \"_comment\": \"FlowHQ services the system may recommend. Only services with enabled=true are ever suggested. Review every entry and disable anything FlowHQ cannot currently deliver. 'signals' lists the website observations a service can address (see lib/signals.js); 'weight' scales how strongly that observation supports the service. Benefit statements are the only benefit wording the email writer may use.\",\n  \"services\": [\n   {\n    \"id\": \"appointment_scheduling\",\n    \"enabled\": true,\n    \"name\": \"Online booking and appointment reminders\",\n    \"description\": \"Lets customers book or request appointments online, with automatic confirmations, reminders and rescheduling links.\",\n    \"pitch\": \"an online booking option with automatic confirmations and reminders\",\n    \"signals\": {\n     \"booking_by_phone_or_email\": 1,\n     \"booking_not_found\": 0.85,\n     \"pdf_intake_forms\": 0.3\n    },\n    \"industries_fit\": [\n     \"appointment\"\n    ],\n    \"required_integrations\": [\n     \"Existing calendar or practice-management system (e.g. Google Calendar, Cliniko, Square Appointments)\",\n     \"SMS or email sender\"\n    ],\n    \"limitations\": \"Depends on the business's calendar or practice-management system offering an integration; some regulated industries need extra privacy review.\",\n    \"approved_benefits\": [\n     \"customers can book at a time that suits them, including outside opening hours\",\n     \"fewer phone calls and emails spent arranging times\",\n     \"automatic reminders that can help reduce missed appointments\"\n    ],\n    \"example_use_cases\": [\n     \"Dental clinic online booking with SMS reminders\",\n     \"Physio rescheduling links\"\n    ]\n   },\n   {\n    \"id\": \"ai_receptionist\",\n    \"enabled\": true,\n    \"name\": \"AI phone receptionist\",\n    \"description\": \"Answers inbound calls when the team is busy or closed, captures the caller's details and reason for calling, and passes a summary to the team.\",\n    \"pitch\": \"an AI receptionist that answers calls when the team is busy or closed and sends you a summary of each one\",\n    \"signals\": {\n     \"phone_primary_contact\": 0.9,\n     \"opening_hours_listed\": 0.7,\n     \"booking_by_phone_or_email\": 0.6\n    },\n    \"industries_fit\": [\n     \"*\"\n    ],\n    \"required_integrations\": [\n     \"Call forwarding from the business's phone number\",\n     \"Email, SMS or CRM for call summaries\"\n    ],\n    \"limitations\": \"Needs the business to forward calls; it handles routine calls and hands off anything complex to a person.\",\n    \"approved_benefits\": [\n     \"calls outside opening hours or during busy periods still get answered\",\n     \"the team receives a short summary of each call instead of a voicemail\",\n     \"routine questions can be answered without interrupting staff\"\n    ],\n    \"example_use_cases\": [\n     \"After-hours call answering for a plumbing business\",\n     \"Overflow calls for a busy clinic front desk\"\n    ]\n   },\n   {\n    \"id\": \"enquiry_followup\",\n    \"enabled\": true,\n    \"name\": \"Enquiry acknowledgement and follow-up\",\n    \"description\": \"Sends an immediate, personalised acknowledgement to each website enquiry, organises the details, notifies the right person and schedules follow-up reminders.\",\n    \"pitch\": \"an automated enquiry workflow that acknowledges each new request straight away, organises the details and reminds the team to follow up\",\n    \"signals\": {\n     \"contact_form_present\": 0.8,\n     \"quote_by_phone_or_email\": 0.5,\n     \"many_services_listed\": 0.5\n    },\n    \"industries_fit\": [\n     \"*\"\n    ],\n    \"required_integrations\": [\n     \"Website form\",\n     \"Email\",\n     \"Optional CRM or spreadsheet\"\n    ],\n    \"limitations\": \"Works best when enquiries arrive through a form or a single inbox.\",\n    \"approved_benefits\": [\n     \"every enquiry gets a prompt acknowledgement, even when the team is busy\",\n     \"enquiry details arrive organised in one place\",\n     \"follow-ups happen consistently instead of relying on memory\"\n    ],\n    \"example_use_cases\": [\n     \"Auto-acknowledge and route contact-form enquiries to the right team member\"\n    ]\n   },\n   {\n    \"id\": \"quote_request_workflow\",\n    \"enabled\": true,\n    \"name\": \"Online quote-request workflow\",\n    \"description\": \"A short guided quote-request form that collects the job details up front, acknowledges the request and notifies the team.\",\n    \"pitch\": \"a short online quote-request form that collects the job details up front and acknowledges each request automatically\",\n    \"signals\": {\n     \"quote_by_phone_or_email\": 1\n    },\n    \"industries_fit\": [\n     \"trades\",\n     \"services\"\n    ],\n    \"required_integrations\": [\n     \"Website\",\n     \"Email or CRM\"\n    ],\n    \"limitations\": \"Final pricing still comes from the business; the workflow collects the details needed to quote.\",\n    \"approved_benefits\": [\n     \"customers can request a quote whenever suits them\",\n     \"the team receives the details needed to quote without back-and-forth\",\n     \"each request gets an immediate acknowledgement\"\n    ],\n    \"example_use_cases\": [\n     \"Electrician quote form with photo upload and instant acknowledgement\"\n    ]\n   },\n   {\n    \"id\": \"lead_capture_crm\",\n    \"enabled\": true,\n    \"name\": \"Lead capture and CRM automation\",\n    \"description\": \"Captures enquiries from the website, email and phone into one organised list or CRM, with automatic tagging and reminders.\",\n    \"pitch\": \"a simple enquiry form connected to an organised enquiry list, so every request is captured in one place\",\n    \"signals\": {\n     \"no_contact_form_found\": 0.85,\n     \"contact_form_present\": 0.4\n    },\n    \"industries_fit\": [\n     \"*\"\n    ],\n    \"required_integrations\": [\n     \"Website\",\n     \"Email\",\n     \"CRM or Google Sheets\"\n    ],\n    \"limitations\": \"Requires agreement on where enquiries should be stored.\",\n    \"approved_benefits\": [\n     \"enquiries from different channels end up in one organised place\",\n     \"less manual copying of enquiry details\",\n     \"it's easier to see which enquiries still need a reply\"\n    ],\n    \"example_use_cases\": [\n     \"Website form plus inbox parsing into a shared CRM\"\n    ]\n   },\n   {\n    \"id\": \"ai_website_assistant\",\n    \"enabled\": true,\n    \"name\": \"AI website assistant\",\n    \"description\": \"An assistant on the website that answers common questions from the business's own content and collects enquiry details when someone is ready to get in touch.\",\n    \"pitch\": \"an AI assistant on the website that answers common questions from your own content and collects enquiry details\",\n    \"signals\": {\n     \"faq_extensive\": 1,\n     \"opening_hours_listed\": 0.4,\n     \"no_contact_form_found\": 0.4,\n     \"many_services_listed\": 0.4\n    },\n    \"industries_fit\": [\n     \"*\"\n    ],\n    \"exclude_if_signals\": [\n     \"chat_widget_present\"\n    ],\n    \"required_integrations\": [\n     \"Website script embed\",\n     \"Business-approved knowledge content\"\n    ],\n    \"limitations\": \"Answers only from approved content and hands off anything it cannot answer.\",\n    \"approved_benefits\": [\n     \"visitors get answers to common questions straight away\",\n     \"fewer repetitive questions reach the team\",\n     \"enquiry details are collected even outside business hours\"\n    ],\n    \"example_use_cases\": [\n     \"FAQ assistant for a veterinary clinic that also collects appointment requests\"\n    ]\n   },\n   {\n    \"id\": \"client_onboarding\",\n    \"enabled\": true,\n    \"name\": \"Client onboarding and intake forms\",\n    \"description\": \"Replaces downloadable paperwork with online intake forms that feed directly into the business's systems, with automatic reminders to complete them.\",\n    \"pitch\": \"online intake forms that feed straight into your systems, with automatic reminders to complete them\",\n    \"signals\": {\n     \"pdf_intake_forms\": 1\n    },\n    \"industries_fit\": [\n     \"*\"\n    ],\n    \"required_integrations\": [\n     \"Online form tool\",\n     \"Practice-management system, CRM or secure storage\"\n    ],\n    \"limitations\": \"Health and legal businesses may need specific privacy and data-storage requirements reviewed.\",\n    \"approved_benefits\": [\n     \"clients can complete forms online before their first visit\",\n     \"less time re-typing details from paper or PDF forms\",\n     \"automatic reminders for forms that haven't been completed\"\n    ],\n    \"example_use_cases\": [\n     \"New-patient intake form for a physiotherapy clinic\"\n    ]\n   },\n   {\n    \"id\": \"enquiry_journey_improvements\",\n    \"enabled\": true,\n    \"name\": \"Website enquiry journey improvements\",\n    \"description\": \"Small website changes that make the next step obvious, such as a clear call to action and contact options that are easy to find.\",\n    \"pitch\": \"a few small website changes that make the next step obvious, such as a clear call to action and easy-to-find contact options\",\n    \"signals\": {\n     \"no_clear_cta_homepage\": 1,\n     \"contact_not_on_homepage\": 1,\n     \"no_mobile_viewport\": 0.6\n    },\n    \"industries_fit\": [\n     \"*\"\n    ],\n    \"required_integrations\": [\n     \"Website edit access\"\n    ],\n    \"limitations\": \"Recommendations are based on a limited review of public pages, not analytics.\",\n    \"approved_benefits\": [\n     \"visitors can see the next step quickly\",\n     \"it's easier for interested customers to get in touch\"\n    ],\n    \"example_use_cases\": [\n     \"Adding a clear 'Book a consultation' button and contact details to the homepage\"\n    ]\n   },\n   {\n    \"id\": \"review_requests\",\n    \"enabled\": true,\n    \"name\": \"Review-request automation\",\n    \"description\": \"Automatically asks happy customers for a review after a completed job or appointment.\",\n    \"pitch\": \"an automatic review request sent after each completed job or appointment\",\n    \"signals\": {\n     \"reviews_mentioned\": 0.6\n    },\n    \"industries_fit\": [\n     \"*\"\n    ],\n    \"required_integrations\": [\n     \"Booking or job-completion trigger\",\n     \"SMS or email\"\n    ],\n    \"limitations\": \"Must follow the review platform's rules; no incentives or review gating.\",\n    \"approved_benefits\": [\n     \"review requests go out consistently after each job\",\n     \"less manual effort spent asking for reviews\"\n    ],\n    \"example_use_cases\": [\n     \"Google review request sent the day after a completed service\"\n    ]\n   },\n   {\n    \"id\": \"support_triage\",\n    \"enabled\": true,\n    \"name\": \"Customer support triage\",\n    \"description\": \"Sorts incoming messages by topic and urgency and routes them to the right person, with suggested replies for common questions.\",\n    \"pitch\": \"a workflow that sorts incoming messages by topic and urgency and routes them to the right person\",\n    \"signals\": {\n     \"chat_widget_present\": 0.4,\n     \"many_services_listed\": 0.3\n    },\n    \"industries_fit\": [\n     \"*\"\n    ],\n    \"required_integrations\": [\n     \"Shared inbox or helpdesk\"\n    ],\n    \"limitations\": \"Suggested replies are reviewed by staff before sending.\",\n    \"approved_benefits\": [\n     \"urgent messages reach the right person sooner\",\n     \"less time spent sorting the inbox\"\n    ],\n    \"example_use_cases\": [\n     \"Routing service, billing and booking emails to different team members\"\n    ]\n   },\n   {\n    \"id\": \"reporting_admin\",\n    \"enabled\": true,\n    \"name\": \"Internal reporting and admin automation\",\n    \"description\": \"Automates repetitive admin such as weekly enquiry summaries, data entry between systems and status reports.\",\n    \"pitch\": \"automating repetitive admin such as weekly enquiry summaries\",\n    \"signals\": {},\n    \"industries_fit\": [\n     \"*\"\n    ],\n    \"required_integrations\": [\n     \"Varies by business\"\n    ],\n    \"limitations\": \"Not recommended from a website review alone; only discussed once internal processes are known.\",\n    \"approved_benefits\": [\n     \"less time spent on repetitive admin\"\n    ],\n    \"example_use_cases\": [\n     \"Weekly summary of new enquiries and bookings emailed to the owner\"\n    ]\n   }\n  ],\n  \"industry_groups\": {\n   \"appointment\": [\n    \"dental\",\n    \"dentist\",\n    \"orthodont\",\n    \"clinic\",\n    \"medical\",\n    \"doctor\",\n    \"gp\",\n    \"physio\",\n    \"physiotherap\",\n    \"chiropract\",\n    \"osteopath\",\n    \"podiatr\",\n    \"optometr\",\n    \"optician\",\n    \"psycholog\",\n    \"counsel\",\n    \"therap\",\n    \"massage\",\n    \"salon\",\n    \"hair\",\n    \"barber\",\n    \"beauty\",\n    \"spa\",\n    \"nail\",\n    \"lash\",\n    \"brow\",\n    \"aesthetic\",\n    \"cosmetic\",\n    \"vet\",\n    \"veterinar\",\n    \"groom\",\n    \"fitness\",\n    \"gym\",\n    \"personal trainer\",\n    \"pilates\",\n    \"yoga\",\n    \"tutor\",\n    \"driving school\",\n    \"audiolog\",\n    \"dietit\",\n    \"naturopath\",\n    \"acupunct\"\n   ],\n   \"trades\": [\n    \"plumb\",\n    \"electric\",\n    \"hvac\",\n    \"heating\",\n    \"air condition\",\n    \"roof\",\n    \"builder\",\n    \"construct\",\n    \"landscap\",\n    \"garden\",\n    \"paint\",\n    \"carpent\",\n    \"handyman\",\n    \"clean\",\n    \"pest\",\n    \"lock\",\n    \"glaz\",\n    \"fenc\",\n    \"pool\",\n    \"solar\",\n    \"flooring\",\n    \"tiling\",\n    \"renovat\",\n    \"removal\",\n    \"moving\",\n    \"concrete\",\n    \"gutter\",\n    \"arborist\",\n    \"tree\"\n   ],\n   \"services\": [\n    \"law\",\n    \"legal\",\n    \"solicitor\",\n    \"attorney\",\n    \"accountant\",\n    \"accounting\",\n    \"bookkeep\",\n    \"tax\",\n    \"real estate\",\n    \"property\",\n    \"mortgage\",\n    \"insurance\",\n    \"consult\",\n    \"agency\",\n    \"marketing\",\n    \"architect\",\n    \"engineer\",\n    \"photograph\",\n    \"event\",\n    \"wedding\",\n    \"catering\",\n    \"printing\",\n    \"signage\",\n    \"auto\",\n    \"mechanic\",\n    \"car repair\",\n    \"detailing\",\n    \"storage\",\n    \"it support\",\n    \"web design\"\n   ]\n  }\n },\n \"compliance\": {\n  \"_comment\": \"Per-country sending gates enforced by the Send workflow. This is an engineering control, not legal advice: see docs/COMPLIANCE.md and confirm with a lawyer before live sending. Add a country here before enabling it in settings.countries.enabled.\",\n  \"countries\": {\n   \"US\": {\n    \"law\": \"CAN-SPAM Act (15 U.S.C. 7701-7713) and FTC CAN-SPAM Rule\",\n    \"consent_model\": \"opt_out\",\n    \"require_legal_basis_confirmation\": false,\n    \"require_published_address_evidence\": false,\n    \"require_postal_address\": true,\n    \"require_unsubscribe\": true,\n    \"require_ad_disclosure\": true,\n    \"language\": \"en-US\",\n    \"notes\": \"No prior consent required for B2B email, but every message needs accurate headers, a non-deceptive subject, identification as an advertisement/solicitation, a valid physical postal address and a working opt-out honoured promptly.\"\n   },\n   \"GB\": {\n    \"law\": \"Privacy and Electronic Communications Regulations 2003 (PECR) and UK GDPR\",\n    \"consent_model\": \"corporate_subscriber_opt_out_individual_subscriber_consent\",\n    \"require_legal_basis_confirmation\": true,\n    \"require_published_address_evidence\": false,\n    \"require_postal_address\": true,\n    \"require_unsubscribe\": true,\n    \"require_ad_disclosure\": false,\n    \"language\": \"en-GB\",\n    \"notes\": \"Unsolicited marketing email to corporate subscribers (limited companies, LLPs, Scottish partnerships, government bodies) is permitted without consent if the sender is identified and an opt-out is provided. Sole traders and ordinary partnerships are individual subscribers and generally need prior consent. Named employee addresses are personal data under UK GDPR, so a documented legitimate-interests assessment and a privacy notice are needed. Set legal_basis_confirmed=TRUE on a lead only after confirming it is a corporate subscriber.\"\n   },\n   \"AU\": {\n    \"law\": \"Spam Act 2003 (Cth), enforced by ACMA\",\n    \"consent_model\": \"express_or_inferred_consent\",\n    \"require_legal_basis_confirmation\": false,\n    \"require_published_address_evidence\": true,\n    \"require_postal_address\": false,\n    \"require_unsubscribe\": true,\n    \"require_ad_disclosure\": false,\n    \"language\": \"en-GB\",\n    \"notes\": \"Commercial email needs consent. Inferred consent from a conspicuously published address applies only if the address is publicly published, the publication does not say unsolicited messages are unwanted, and the message relates directly to the recipient's role or business. The workflow records where the address was found; a human must still confirm role relevance at approval time. Sender identification and a functional unsubscribe are mandatory; unsubscribes must be honoured within 5 business days.\"\n   },\n   \"NZ\": {\n    \"law\": \"Unsolicited Electronic Messages Act 2007, enforced by the Department of Internal Affairs\",\n    \"consent_model\": \"express_deemed_or_inferred_consent\",\n    \"require_legal_basis_confirmation\": false,\n    \"require_published_address_evidence\": true,\n    \"require_postal_address\": false,\n    \"require_unsubscribe\": true,\n    \"require_ad_disclosure\": false,\n    \"language\": \"en-GB\",\n    \"notes\": \"Commercial email needs consent. Deemed consent applies where a business address is conspicuously published, there is no statement refusing unsolicited messages, and the message is relevant to the recipient's business role. The sender bears the burden of proving consent. Sender identification and a functional unsubscribe are mandatory; unsubscribes must be honoured within 5 working days.\"\n   }\n  },\n  \"no_unsolicited_patterns\": [\n   \"no unsolicited\",\n   \"unsolicited (?:emails?|messages?|marketing|solicitations?) (?:are|is) not (?:accepted|welcome|wanted)\",\n   \"do not (?:send|email) (?:us )?(?:unsolicited|marketing|sales|spam)\",\n   \"no (?:marketing|sales|spam|solicitations?|cold) (?:emails?|calls?|enquiries|inquiries|please)\",\n   \"not accept (?:unsolicited|marketing|sales)\",\n   \"we do not wish to receive\"\n  ]\n },\n \"mapping\": {\n  \"_comment\": \"Maps your spreadsheet's column headers to the canonical fields. 'explicit' wins over 'aliases'. Header matching ignores case, spaces, underscores and punctuation. Columns that match nothing are preserved untouched in original_row_json.\",\n  \"explicit\": {},\n  \"aliases\": {\n   \"lead_id\": [\n    \"lead id\",\n    \"leadid\",\n    \"id\",\n    \"record id\",\n    \"row id\"\n   ],\n   \"business_name\": [\n    \"business name\",\n    \"business\",\n    \"company\",\n    \"company name\",\n    \"organisation\",\n    \"organization\",\n    \"account\",\n    \"account name\",\n    \"practice name\",\n    \"clinic name\",\n    \"name of business\",\n    \"trading name\"\n   ],\n   \"contact_name\": [\n    \"contact name\",\n    \"contact\",\n    \"full name\",\n    \"contact person\",\n    \"owner name\",\n    \"decision maker\",\n    \"name\"\n   ],\n   \"first_name\": [\n    \"first name\",\n    \"firstname\",\n    \"given name\",\n    \"forename\"\n   ],\n   \"last_name\": [\n    \"last name\",\n    \"lastname\",\n    \"surname\",\n    \"family name\"\n   ],\n   \"email\": [\n    \"email\",\n    \"email address\",\n    \"e-mail\",\n    \"e mail\",\n    \"contact email\",\n    \"work email\",\n    \"business email\",\n    \"primary email\"\n   ],\n   \"website\": [\n    \"website\",\n    \"website url\",\n    \"url\",\n    \"web\",\n    \"site\",\n    \"domain\",\n    \"company website\",\n    \"homepage\",\n    \"web address\"\n   ],\n   \"country\": [\n    \"country\",\n    \"country code\",\n    \"nation\",\n    \"location country\"\n   ],\n   \"industry\": [\n    \"industry\",\n    \"category\",\n    \"niche\",\n    \"sector\",\n    \"vertical\",\n    \"business type\",\n    \"business category\",\n    \"type\"\n   ],\n   \"source\": [\n    \"source\",\n    \"lead source\",\n    \"list source\",\n    \"origin\"\n   ],\n   \"notes\": [\n    \"notes\",\n    \"note\",\n    \"comments\",\n    \"existing notes\",\n    \"remarks\"\n   ],\n   \"outreach_status\": [\n    \"outreach status\",\n    \"status\",\n    \"lead status\"\n   ],\n   \"phone\": [\n    \"phone\",\n    \"phone number\",\n    \"telephone\",\n    \"tel\",\n    \"mobile\"\n   ],\n   \"city\": [\n    \"city\",\n    \"town\",\n    \"suburb\",\n    \"locality\"\n   ],\n   \"state\": [\n    \"state\",\n    \"region\",\n    \"province\",\n    \"county\"\n   ],\n   \"legal_basis_confirmed\": [\n    \"legal basis confirmed\",\n    \"consent\",\n    \"consent confirmed\",\n    \"lawful basis\"\n   ]\n  },\n  \"required\": [\n   \"business_name\",\n   \"email\",\n   \"website\"\n  ],\n  \"source_statuses_to_skip\": [\n   \"contacted\",\n   \"sent\",\n   \"emailed\",\n   \"do not contact\",\n   \"dnc\",\n   \"unsubscribed\",\n   \"opted out\",\n   \"customer\",\n   \"client\",\n   \"bounced\",\n   \"replied\"\n  ]\n }\n} }];\n"
+      },
+      "id": "fhq-0003-config",
+      "name": "Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== FlowHQ library bundle (generated from lib/*.js by scripts/build-workflows.js; edit lib/ and rebuild) =====\nconst __defs = {};\n__defs[\"util\"] = function (module, exports, require) {\n'use strict';\n// Shared helpers. Pure JavaScript only: these files are bundled into n8n Code\n// nodes, which run in a sandboxed task runner without Node built-in modules.\n\nfunction str(v) {\n  if (v === null || v === undefined) return '';\n  return String(v);\n}\n\nfunction clean(v) {\n  return str(v).replace(/\\s+/g, ' ').trim();\n}\n\nfunction truthy(v) {\n  if (typeof v === 'boolean') return v;\n  const s = clean(v).toLowerCase();\n  return ['true', 'yes', 'y', '1', 'on', 'enabled', 'approved'].includes(s);\n}\n\nfunction toInt(v, fallback) {\n  const n = parseInt(str(v).trim(), 10);\n  return Number.isFinite(n) ? n : fallback;\n}\n\n// FNV-1a 32-bit, used for stable, non-secret identifiers.\nfunction fnv1a(input, seed) {\n  let h = seed === undefined ? 0x811c9dc5 : seed >>> 0;\n  const s = str(input);\n  for (let i = 0; i < s.length; i++) {\n    h ^= s.charCodeAt(i);\n    h = Math.imul(h, 0x01000193) >>> 0;\n  }\n  return h >>> 0;\n}\n\nfunction stableHash(input) {\n  const a = fnv1a(input).toString(36).padStart(7, '0');\n  const b = fnv1a(input, 0x9747b28c).toString(36).padStart(7, '0');\n  return (a + b).toUpperCase();\n}\n\nfunction randomToken(length) {\n  const len = length || 32;\n  const alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789';\n  let out = '';\n  const c = typeof crypto !== 'undefined' && crypto && typeof crypto.getRandomValues === 'function' ? crypto : null;\n  if (c) {\n    const bytes = new Uint8Array(len);\n    c.getRandomValues(bytes);\n    for (let i = 0; i < len; i++) out += alphabet[bytes[i] % alphabet.length];\n    return out;\n  }\n  for (let i = 0; i < len; i++) out += alphabet[Math.floor(Math.random() * alphabet.length)];\n  return out;\n}\n\nconst NAMED_ENTITIES = {\n  amp: '&', lt: '<', gt: '>', quot: '\"', apos: \"'\", nbsp: ' ', ndash: '-', mdash: '-',\n  rsquo: \"'\", lsquo: \"'\", rdquo: '\"', ldquo: '\"', hellip: '...', copy: '(c)', reg: '(R)',\n  trade: '(TM)', middot: '-', bull: '-', laquo: '\"', raquo: '\"', eacute: 'e', egrave: 'e',\n  aacute: 'a', agrave: 'a', oacute: 'o', uacute: 'u', iacute: 'i', ntilde: 'n', ccedil: 'c',\n  times: 'x', pound: '£', euro: '€', dollar: '$', cent: 'c', deg: ' degrees', frac12: '1/2',\n};\n\nfunction decodeEntities(s) {\n  return str(s).replace(/&(#x[0-9a-f]+|#\\d+|[a-z][a-z0-9]*);/gi, (m, code) => {\n    if (code[0] === '#') {\n      const n = code[1] === 'x' || code[1] === 'X' ? parseInt(code.slice(2), 16) : parseInt(code.slice(1), 10);\n      if (!Number.isFinite(n) || n <= 0 || n > 0x10ffff) return ' ';\n      try { return String.fromCodePoint(n); } catch (e) { return ' '; }\n    }\n    const v = NAMED_ENTITIES[code.toLowerCase()];\n    return v === undefined ? m : v;\n  });\n}\n\nfunction truncate(s, max) {\n  const t = str(s);\n  if (t.length <= max) return t;\n  return t.slice(0, Math.max(0, max - 3)).trimEnd() + '...';\n}\n\nfunction uniq(arr) {\n  const seen = new Set();\n  const out = [];\n  for (const x of arr) {\n    if (!seen.has(x)) { seen.add(x); out.push(x); }\n  }\n  return out;\n}\n\nfunction safeJsonParse(s, fallback) {\n  if (s && typeof s === 'object') return s;\n  const t = str(s).trim();\n  if (!t) return fallback;\n  try { return JSON.parse(t); } catch (e) { return fallback; }\n}\n\n// Google Sheets cells hold at most 50,000 characters.\nfunction toCell(value, max) {\n  const limit = max || 45000;\n  const s = typeof value === 'string' ? value : JSON.stringify(value === undefined ? null : value);\n  return s.length > limit ? s.slice(0, limit) : s;\n}\n\nfunction isoNow(now) {\n  return (now instanceof Date ? now : new Date(now || Date.now())).toISOString();\n}\n\nfunction errorMessage(e) {\n  if (!e) return 'unknown error';\n  if (typeof e === 'string') return e;\n  return clean(e.message || JSON.stringify(e)).slice(0, 500);\n}\n\nmodule.exports = {\n  str, clean, truthy, toInt, fnv1a, stableHash, randomToken, decodeEntities, truncate,\n  uniq, safeJsonParse, toCell, isoNow, errorMessage,\n};\n\n};\n__defs[\"config\"] = function (module, exports, require) {\n'use strict';\n// Effective runtime policy = static config (in the workflow) combined with the\n// \"Settings\" sheet tab. Every combination is the MORE RESTRICTIVE of the two,\n// and a missing or unreadable Settings value fails closed.\nconst { clean, truthy, toInt } = require('./util');\n\nfunction settingsMap(rows) {\n  const map = {};\n  for (const r of rows || []) {\n    const k = clean(r.key || r.Key || r.setting).toUpperCase();\n    if (k) map[k] = r.value !== undefined ? r.value : r.Value;\n  }\n  return map;\n}\n\nfunction listOf(v) {\n  if (Array.isArray(v)) return v.map((x) => clean(x).toLowerCase()).filter(Boolean);\n  return String(v || '').split(/[\\s,;]+/).map((x) => x.trim().toLowerCase()).filter(Boolean);\n}\n\nfunction minDefined(a, b) {\n  const xs = [a, b].filter((x) => Number.isFinite(x));\n  return xs.length ? Math.min(...xs) : 0;\n}\n\nfunction effectivePolicy(settings, settingsRows) {\n  const s = settings.sending || {};\n  const sheet = settingsMap(settingsRows);\n  const has = (k) => sheet[k] !== undefined && clean(sheet[k]) !== '';\n  const killSwitch = has('KILL_SWITCH') ? truthy(sheet.KILL_SWITCH) : false;\n  const sheetSending = has('SENDING_ENABLED') ? truthy(sheet.SENDING_ENABLED) : false;\n  const sheetTest = has('TEST_MODE') ? truthy(sheet.TEST_MODE) : true;\n  const sendingEnabled = !!s.SENDING_ENABLED && sheetSending && !killSwitch;\n  const testMode = s.TEST_MODE !== false || sheetTest;\n  const approval = s.live_approval || {};\n  const liveApproved = !!(clean(approval.approved_by) && clean(approval.approved_at));\n  const reasons = [];\n  if (killSwitch) reasons.push(`KILL_SWITCH is on${has('KILL_SWITCH_REASON') ? ': ' + clean(sheet.KILL_SWITCH_REASON) : ''}`);\n  if (!s.SENDING_ENABLED) reasons.push('SENDING_ENABLED=false in workflow config');\n  if (!sheetSending) reasons.push('SENDING_ENABLED is not TRUE in the Settings sheet');\n  if (!testMode && !liveApproved) reasons.push('live sending requested but sending.live_approval is not filled in');\n  return {\n    sending_enabled: sendingEnabled && (testMode || liveApproved),\n    test_mode: testMode,\n    live: sendingEnabled && !testMode && liveApproved,\n    kill_switch: killSwitch,\n    require_approval: s.REQUIRE_APPROVAL !== false || (has('REQUIRE_APPROVAL') && truthy(sheet.REQUIRE_APPROVAL)),\n    max_per_run: minDefined(toInt(s.max_sends_per_run, NaN), has('MAX_SENDS_PER_RUN') ? toInt(sheet.MAX_SENDS_PER_RUN, NaN) : NaN),\n    max_per_day: minDefined(toInt(s.max_sends_per_day, NaN), has('MAX_SENDS_PER_DAY') ? toInt(sheet.MAX_SENDS_PER_DAY, NaN) : NaN),\n    interval_seconds: Math.max(toInt(s.send_interval_seconds, 60), has('SEND_INTERVAL_SECONDS') ? toInt(sheet.SEND_INTERVAL_SECONDS, 0) : 0),\n    jitter_seconds: Math.max(0, toInt(s.send_jitter_seconds, 0)),\n    test_allowlist: Array.from(new Set(listOf(s.test_allowlist).concat(has('TEST_ALLOWLIST') ? listOf(sheet.TEST_ALLOWLIST) : []))),\n    test_redirect_to: clean(has('TEST_REDIRECT_TO') ? sheet.TEST_REDIRECT_TO : s.test_redirect_to).toLowerCase(),\n    max_retries: toInt(s.max_retries, 3),\n    retry_backoff_minutes: toInt(s.retry_backoff_minutes, 30),\n    domain_cooldown_days: toInt(s.domain_cooldown_days, 180),\n    blocked_reasons: reasons,\n    research_batch_size: minDefined(toInt((settings.research || {}).batch_size, NaN), has('RESEARCH_BATCH_SIZE') ? toInt(sheet.RESEARCH_BATCH_SIZE, NaN) : NaN) || 10,\n    generation_batch_size: minDefined(toInt((settings.generation || {}).batch_size, NaN), has('GENERATION_BATCH_SIZE') ? toInt(sheet.GENERATION_BATCH_SIZE, NaN) : NaN) || 10,\n  };\n}\n\n// Problems with static config that make sending impossible.\nfunction configProblems(settings) {\n  const p = [];\n  const sender = settings.sender || {};\n  if (!clean(settings.spreadsheet_id) || /REPLACE_WITH/.test(settings.spreadsheet_id)) p.push('spreadsheet_id not set');\n  if (!clean(sender.name) || /REPLACE_WITH/.test(sender.name)) p.push('sender.name not set');\n  if (!clean(sender.email) || /REPLACE_WITH/.test(sender.email)) p.push('sender.email not set');\n  if (/REPLACE_WITH/.test(sender.postal_address || '')) p.push('sender.postal_address not set (required for US recipients)');\n  return p;\n}\n\nmodule.exports = { settingsMap, effectivePolicy, configProblems, listOf };\n\n};\nconst __cache = {};\nfunction __require(n) { n = n.replace(/^\\.\\//, '').replace(/\\.js$/, ''); if (__cache[n]) return __cache[n].exports; const m = { exports: {} }; __cache[n] = m; __defs[n](m, m.exports, __require); return m.exports; }\nconst lib = { config: __require(\"config\") };\n// ===== end of bundle =====\n\nconst CFG = $('Config').first().json;\nconst S = CFG.settings;\nconst rowsOf = (name) => { try { return $(name).all().map((i) => i.json).filter((r) => r && Object.keys(r).length && !r.error); } catch (e) { return []; } };\nreturn [{ json: { config_problems: lib.config.configProblems(S) } }];\n"
+      },
+      "id": "fhq-0004-check-configuration",
+      "name": "Check configuration",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "sheet",
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('Config').first().json.settings.spreadsheet_id }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('Config').first().json.settings.sheets.settings }}",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "fhq-0005-read-settings",
+      "name": "Read Settings",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        480,
+        100
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "flowhqSheetsCred",
+          "name": "FlowHQ Google Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'https://sheets.googleapis.com/v4/spreadsheets/' + $('Config').first().json.settings.spreadsheet_id + '/values:batchGet' }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "ranges",
+              "value": "Leads!1:1"
+            },
+            {
+              "name": "ranges",
+              "value": "Research_Cache!1:1"
+            },
+            {
+              "name": "ranges",
+              "value": "Send_Log!1:1"
+            },
+            {
+              "name": "ranges",
+              "value": "Suppression!1:1"
+            },
+            {
+              "name": "ranges",
+              "value": "Error_Log!1:1"
+            },
+            {
+              "name": "ranges",
+              "value": "Settings!1:1"
+            },
+            {
+              "name": "ranges",
+              "value": "Inbox_Log!1:1"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "fhq-0001-read-sheet-headers",
+      "name": "Read sheet headers",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        0
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "flowhqSheetsCred",
+          "name": "FlowHQ Google Sheets"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').first().json.settings.sending.gmail_api_base }}/gmail/v1/users/me/profile",
+        "authentication": "predefinedCredentialType",
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        },
+        "nodeCredentialType": "gmailOAuth2"
+      },
+      "id": "fhq-0006-gmail-profile-read-only-",
+      "name": "Gmail profile (read-only)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        960,
+        0
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "flowhqGmailCred0",
+          "name": "FlowHQ Gmail"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== FlowHQ library bundle (generated from lib/*.js by scripts/build-workflows.js; edit lib/ and rebuild) =====\nconst __defs = {};\n__defs[\"schema\"] = function (module, exports, require) {\n'use strict';\n// Column layout for every tab in the FlowHQ Outreach spreadsheet.\n// templates/FlowHQ-Outreach-Template.xlsx is generated from this file.\n\nconst TABS = {\n  Leads: [\n    // identity (lead_id must stay in column A: updates match on it)\n    'lead_id', 'business_name', 'contact_name', 'first_name', 'email', 'role_address', 'website', 'domain', 'country',\n    'country_inferred', 'industry', 'industry_group', 'source', 'notes', 'phone', 'source_row_number', 'original_row_json', 'imported_at',\n    // workflow state\n    'outreach_status', 'status_reason', 'validation_errors', 'duplicate_of', 'legal_basis_confirmed', 'reprocess',\n    // research\n    'website_access_status', 'pages_reviewed', 'observed_issue_1', 'evidence_url_1', 'evidence_snippet_1', 'observed_issue_2',\n    'evidence_url_2', 'evidence_snippet_2', 'signals_json', 'email_published_url', 'no_unsolicited_notice', 'research_summary', 'researched_at',\n    // personalisation\n    'selected_signals', 'recommended_solution', 'secondary_solution', 'business_benefit', 'confidence_score', 'email_subject', 'email_body',\n    'factual_validation_status', 'validation_issues', 'generator', 'llm_usage', 'generation_attempts', 'generated_at',\n    // approval\n    'approval_status', 'approved_by', 'reviewer_notes',\n    // sending & tracking\n    'send_block_reason', 'send_mode', 'sent_to', 'sending_timestamp', 'provider_message_id', 'provider_thread_id',\n    'delivery_or_error_status', 'retry_count', 'next_retry_at', 'follow_up_eligible', 'opt_out_status', 'unsubscribe_token',\n    'last_error', 'updated_at',\n  ],\n  Research_Cache: ['domain', 'researched_at', 'expires_at', 'access_status', 'pages_reviewed', 'signals_json', 'emails_found',\n    'no_unsolicited_notice', 'text_chars', 'summary', 'research_json'],\n  Send_Log: ['log_id', 'timestamp', 'run_id', 'lead_id', 'mode', 'intended_recipient', 'actual_recipient', 'subject', 'status',\n    'http_status', 'provider_message_id', 'thread_id', 'error_message'],\n  Suppression: ['value', 'type', 'reason', 'source', 'added_at', 'lead_id'],\n  Error_Log: ['timestamp', 'workflow', 'node', 'lead_id', 'error_type', 'message', 'execution_id'],\n  Settings: ['key', 'value', 'notes'],\n  Inbox_Log: ['message_id', 'thread_id', 'received_at', 'from', 'subject', 'classification', 'matched_lead_id', 'action', 'processed_at'],\n};\n\nconst DEFAULT_SETTINGS_ROWS = [\n  { key: 'KILL_SWITCH', value: 'FALSE', notes: 'TRUE stops all sending immediately, including mid-run. Set automatically on Gmail auth/quota errors or a high bounce rate.' },\n  { key: 'KILL_SWITCH_REASON', value: '', notes: 'Why the kill switch was set.' },\n  { key: 'SENDING_ENABLED', value: 'FALSE', notes: 'Must be TRUE here AND in the workflow config for anything to be sent.' },\n  { key: 'TEST_MODE', value: 'TRUE', notes: 'TRUE = only allowlisted test inboxes receive email. Live sending also requires sending.live_approval in the workflow config.' },\n  { key: 'TEST_ALLOWLIST', value: '', notes: 'Comma-separated test inboxes you own.' },\n  { key: 'TEST_REDIRECT_TO', value: '', notes: 'Optional: a test inbox (also on the allowlist) that receives a copy of each approved draft, marked [TEST].' },\n  { key: 'MAX_SENDS_PER_RUN', value: '5', notes: 'The lower of this and the workflow config applies.' },\n  { key: 'MAX_SENDS_PER_DAY', value: '20', notes: 'Rolling 24 hours. The lower of this and the workflow config applies.' },\n  { key: 'SEND_INTERVAL_SECONDS', value: '90', notes: 'Minimum gap between emails. The higher of this and the workflow config applies.' },\n  { key: 'RESEARCH_BATCH_SIZE', value: '10', notes: 'Leads researched per run.' },\n  { key: 'GENERATION_BATCH_SIZE', value: '10', notes: 'Drafts generated per run.' },\n];\n\nmodule.exports = { TABS, DEFAULT_SETTINGS_ROWS };\n\n};\n__defs[\"util\"] = function (module, exports, require) {\n'use strict';\n// Shared helpers. Pure JavaScript only: these files are bundled into n8n Code\n// nodes, which run in a sandboxed task runner without Node built-in modules.\n\nfunction str(v) {\n  if (v === null || v === undefined) return '';\n  return String(v);\n}\n\nfunction clean(v) {\n  return str(v).replace(/\\s+/g, ' ').trim();\n}\n\nfunction truthy(v) {\n  if (typeof v === 'boolean') return v;\n  const s = clean(v).toLowerCase();\n  return ['true', 'yes', 'y', '1', 'on', 'enabled', 'approved'].includes(s);\n}\n\nfunction toInt(v, fallback) {\n  const n = parseInt(str(v).trim(), 10);\n  return Number.isFinite(n) ? n : fallback;\n}\n\n// FNV-1a 32-bit, used for stable, non-secret identifiers.\nfunction fnv1a(input, seed) {\n  let h = seed === undefined ? 0x811c9dc5 : seed >>> 0;\n  const s = str(input);\n  for (let i = 0; i < s.length; i++) {\n    h ^= s.charCodeAt(i);\n    h = Math.imul(h, 0x01000193) >>> 0;\n  }\n  return h >>> 0;\n}\n\nfunction stableHash(input) {\n  const a = fnv1a(input).toString(36).padStart(7, '0');\n  const b = fnv1a(input, 0x9747b28c).toString(36).padStart(7, '0');\n  return (a + b).toUpperCase();\n}\n\nfunction randomToken(length) {\n  const len = length || 32;\n  const alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789';\n  let out = '';\n  const c = typeof crypto !== 'undefined' && crypto && typeof crypto.getRandomValues === 'function' ? crypto : null;\n  if (c) {\n    const bytes = new Uint8Array(len);\n    c.getRandomValues(bytes);\n    for (let i = 0; i < len; i++) out += alphabet[bytes[i] % alphabet.length];\n    return out;\n  }\n  for (let i = 0; i < len; i++) out += alphabet[Math.floor(Math.random() * alphabet.length)];\n  return out;\n}\n\nconst NAMED_ENTITIES = {\n  amp: '&', lt: '<', gt: '>', quot: '\"', apos: \"'\", nbsp: ' ', ndash: '-', mdash: '-',\n  rsquo: \"'\", lsquo: \"'\", rdquo: '\"', ldquo: '\"', hellip: '...', copy: '(c)', reg: '(R)',\n  trade: '(TM)', middot: '-', bull: '-', laquo: '\"', raquo: '\"', eacute: 'e', egrave: 'e',\n  aacute: 'a', agrave: 'a', oacute: 'o', uacute: 'u', iacute: 'i', ntilde: 'n', ccedil: 'c',\n  times: 'x', pound: '£', euro: '€', dollar: '$', cent: 'c', deg: ' degrees', frac12: '1/2',\n};\n\nfunction decodeEntities(s) {\n  return str(s).replace(/&(#x[0-9a-f]+|#\\d+|[a-z][a-z0-9]*);/gi, (m, code) => {\n    if (code[0] === '#') {\n      const n = code[1] === 'x' || code[1] === 'X' ? parseInt(code.slice(2), 16) : parseInt(code.slice(1), 10);\n      if (!Number.isFinite(n) || n <= 0 || n > 0x10ffff) return ' ';\n      try { return String.fromCodePoint(n); } catch (e) { return ' '; }\n    }\n    const v = NAMED_ENTITIES[code.toLowerCase()];\n    return v === undefined ? m : v;\n  });\n}\n\nfunction truncate(s, max) {\n  const t = str(s);\n  if (t.length <= max) return t;\n  return t.slice(0, Math.max(0, max - 3)).trimEnd() + '...';\n}\n\nfunction uniq(arr) {\n  const seen = new Set();\n  const out = [];\n  for (const x of arr) {\n    if (!seen.has(x)) { seen.add(x); out.push(x); }\n  }\n  return out;\n}\n\nfunction safeJsonParse(s, fallback) {\n  if (s && typeof s === 'object') return s;\n  const t = str(s).trim();\n  if (!t) return fallback;\n  try { return JSON.parse(t); } catch (e) { return fallback; }\n}\n\n// Google Sheets cells hold at most 50,000 characters.\nfunction toCell(value, max) {\n  const limit = max || 45000;\n  const s = typeof value === 'string' ? value : JSON.stringify(value === undefined ? null : value);\n  return s.length > limit ? s.slice(0, limit) : s;\n}\n\nfunction isoNow(now) {\n  return (now instanceof Date ? now : new Date(now || Date.now())).toISOString();\n}\n\nfunction errorMessage(e) {\n  if (!e) return 'unknown error';\n  if (typeof e === 'string') return e;\n  return clean(e.message || JSON.stringify(e)).slice(0, 500);\n}\n\nmodule.exports = {\n  str, clean, truthy, toInt, fnv1a, stableHash, randomToken, decodeEntities, truncate,\n  uniq, safeJsonParse, toCell, isoNow, errorMessage,\n};\n\n};\n__defs[\"config\"] = function (module, exports, require) {\n'use strict';\n// Effective runtime policy = static config (in the workflow) combined with the\n// \"Settings\" sheet tab. Every combination is the MORE RESTRICTIVE of the two,\n// and a missing or unreadable Settings value fails closed.\nconst { clean, truthy, toInt } = require('./util');\n\nfunction settingsMap(rows) {\n  const map = {};\n  for (const r of rows || []) {\n    const k = clean(r.key || r.Key || r.setting).toUpperCase();\n    if (k) map[k] = r.value !== undefined ? r.value : r.Value;\n  }\n  return map;\n}\n\nfunction listOf(v) {\n  if (Array.isArray(v)) return v.map((x) => clean(x).toLowerCase()).filter(Boolean);\n  return String(v || '').split(/[\\s,;]+/).map((x) => x.trim().toLowerCase()).filter(Boolean);\n}\n\nfunction minDefined(a, b) {\n  const xs = [a, b].filter((x) => Number.isFinite(x));\n  return xs.length ? Math.min(...xs) : 0;\n}\n\nfunction effectivePolicy(settings, settingsRows) {\n  const s = settings.sending || {};\n  const sheet = settingsMap(settingsRows);\n  const has = (k) => sheet[k] !== undefined && clean(sheet[k]) !== '';\n  const killSwitch = has('KILL_SWITCH') ? truthy(sheet.KILL_SWITCH) : false;\n  const sheetSending = has('SENDING_ENABLED') ? truthy(sheet.SENDING_ENABLED) : false;\n  const sheetTest = has('TEST_MODE') ? truthy(sheet.TEST_MODE) : true;\n  const sendingEnabled = !!s.SENDING_ENABLED && sheetSending && !killSwitch;\n  const testMode = s.TEST_MODE !== false || sheetTest;\n  const approval = s.live_approval || {};\n  const liveApproved = !!(clean(approval.approved_by) && clean(approval.approved_at));\n  const reasons = [];\n  if (killSwitch) reasons.push(`KILL_SWITCH is on${has('KILL_SWITCH_REASON') ? ': ' + clean(sheet.KILL_SWITCH_REASON) : ''}`);\n  if (!s.SENDING_ENABLED) reasons.push('SENDING_ENABLED=false in workflow config');\n  if (!sheetSending) reasons.push('SENDING_ENABLED is not TRUE in the Settings sheet');\n  if (!testMode && !liveApproved) reasons.push('live sending requested but sending.live_approval is not filled in');\n  return {\n    sending_enabled: sendingEnabled && (testMode || liveApproved),\n    test_mode: testMode,\n    live: sendingEnabled && !testMode && liveApproved,\n    kill_switch: killSwitch,\n    require_approval: s.REQUIRE_APPROVAL !== false || (has('REQUIRE_APPROVAL') && truthy(sheet.REQUIRE_APPROVAL)),\n    max_per_run: minDefined(toInt(s.max_sends_per_run, NaN), has('MAX_SENDS_PER_RUN') ? toInt(sheet.MAX_SENDS_PER_RUN, NaN) : NaN),\n    max_per_day: minDefined(toInt(s.max_sends_per_day, NaN), has('MAX_SENDS_PER_DAY') ? toInt(sheet.MAX_SENDS_PER_DAY, NaN) : NaN),\n    interval_seconds: Math.max(toInt(s.send_interval_seconds, 60), has('SEND_INTERVAL_SECONDS') ? toInt(sheet.SEND_INTERVAL_SECONDS, 0) : 0),\n    jitter_seconds: Math.max(0, toInt(s.send_jitter_seconds, 0)),\n    test_allowlist: Array.from(new Set(listOf(s.test_allowlist).concat(has('TEST_ALLOWLIST') ? listOf(sheet.TEST_ALLOWLIST) : []))),\n    test_redirect_to: clean(has('TEST_REDIRECT_TO') ? sheet.TEST_REDIRECT_TO : s.test_redirect_to).toLowerCase(),\n    max_retries: toInt(s.max_retries, 3),\n    retry_backoff_minutes: toInt(s.retry_backoff_minutes, 30),\n    domain_cooldown_days: toInt(s.domain_cooldown_days, 180),\n    blocked_reasons: reasons,\n    research_batch_size: minDefined(toInt((settings.research || {}).batch_size, NaN), has('RESEARCH_BATCH_SIZE') ? toInt(sheet.RESEARCH_BATCH_SIZE, NaN) : NaN) || 10,\n    generation_batch_size: minDefined(toInt((settings.generation || {}).batch_size, NaN), has('GENERATION_BATCH_SIZE') ? toInt(sheet.GENERATION_BATCH_SIZE, NaN) : NaN) || 10,\n  };\n}\n\n// Problems with static config that make sending impossible.\nfunction configProblems(settings) {\n  const p = [];\n  const sender = settings.sender || {};\n  if (!clean(settings.spreadsheet_id) || /REPLACE_WITH/.test(settings.spreadsheet_id)) p.push('spreadsheet_id not set');\n  if (!clean(sender.name) || /REPLACE_WITH/.test(sender.name)) p.push('sender.name not set');\n  if (!clean(sender.email) || /REPLACE_WITH/.test(sender.email)) p.push('sender.email not set');\n  if (/REPLACE_WITH/.test(sender.postal_address || '')) p.push('sender.postal_address not set (required for US recipients)');\n  return p;\n}\n\nmodule.exports = { settingsMap, effectivePolicy, configProblems, listOf };\n\n};\nconst __cache = {};\nfunction __require(n) { n = n.replace(/^\\.\\//, '').replace(/\\.js$/, ''); if (__cache[n]) return __cache[n].exports; const m = { exports: {} }; __cache[n] = m; __defs[n](m, m.exports, __require); return m.exports; }\nconst lib = { schema: __require(\"schema\"), config: __require(\"config\") };\n// ===== end of bundle =====\n\nconst CFG = $('Config').first().json;\nconst S = CFG.settings;\nconst rowsOf = (name) => { try { return $(name).all().map((i) => i.json).filter((r) => r && Object.keys(r).length && !r.error); } catch (e) { return []; } };\n// Read-only checks. Sends nothing. Confirms the spreadsheet and OAuth actually work.\nconst report = { config_problems: $('Check configuration').first().json.config_problems, sheets: {}, gmail: {}, ok: true };\nconst sh = $('Read sheet headers').first().json;\nconst body = sh.body || sh;\nif (sh.statusCode && sh.statusCode >= 300) { report.sheets.error = 'HTTP ' + sh.statusCode + ': ' + JSON.stringify(body).slice(0, 300); report.ok = false; }\nconst ranges = (body && body.valueRanges) || [];\nfor (const tab of Object.keys(lib.schema.TABS)) {\n  const vr = ranges.find((r) => String(r.range || '').replace(/'/g, '').startsWith(tab + '!'));\n  const have = vr && vr.values && vr.values[0] ? vr.values[0] : [];\n  const missing = lib.schema.TABS[tab].filter((col) => !have.includes(col));\n  report.sheets[tab] = !vr ? 'TAB MISSING' : missing.length ? 'missing columns: ' + missing.join(', ') : 'ok';\n  if (report.sheets[tab] !== 'ok') report.ok = false;\n}\nconst g = $('Gmail profile (read-only)').first().json;\nconst gb = g.body || g;\nif (g.statusCode === 200 && gb.emailAddress) {\n  report.gmail.authenticated_as = gb.emailAddress;\n  report.gmail.matches_sender_email = String(gb.emailAddress).toLowerCase() === String(S.sender.email).toLowerCase();\n  if (!report.gmail.matches_sender_email) report.gmail.note = 'sender.email differs from the authenticated account; Gmail will only use it if it is a verified send-as alias.';\n} else { report.gmail.error = 'Gmail OAuth check failed: ' + JSON.stringify(gb).slice(0, 300); report.ok = false; }\nif (report.config_problems.length) report.ok = false;\nreport.policy = lib.config.effectivePolicy(S, rowsOf('Read Settings'));\nreturn [{ json: report }];\n"
+      },
+      "id": "fhq-0007-preflight-report",
+      "name": "Preflight report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Run manually": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Check configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check configuration": {
+      "main": [
+        [
+          {
+            "node": "Read Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Settings": {
+      "main": [
+        [
+          {
+            "node": "Read sheet headers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read sheet headers": {
+      "main": [
+        [
+          {
+            "node": "Gmail profile (read-only)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail profile (read-only)": {
+      "main": [
+        [
+          {
+            "node": "Preflight report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "errorWorkflow": "FlowHQ99ErrorLog"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}
